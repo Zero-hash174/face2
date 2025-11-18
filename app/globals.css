@@ -1,0 +1,240 @@
+/* استيراد الخط العربي الجميل Cairo */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+
+:root {
+  /* تعريف الألوان الرئيسية */
+  --primary: #4f46e5;       /* نيلي */
+  --primary-hover: #4338ca;
+  --bg-color: #f8fafc;      /* خلفية الصفحة */
+  --card-bg: #ffffff;       /* خلفية البطاقات */
+  --text-main: #1e293b;     /* النص الرئيسي */
+  --text-secondary: #64748b;/* النص الثانوي */
+  --success: #10b981;       /* أخضر النجاح */
+  --danger: #ef4444;        /* أحمر الخطر/الخروج */
+  --danger-hover: #dc2626;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Cairo', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  direction: rtl; /* الاتجاه من اليمين لليسار */
+  overflow-x: hidden; /* منع التمرير الأفقي */
+}
+
+/* ----------------------------------------- */
+/* تعريف الحركات (Animations)      */
+/* ----------------------------------------- */
+
+/* 1. ظهور تدريجي */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 2. انزلاق للأعلى */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 3. انزلاق للأسفل (للإشعارات) */
+@keyframes slideDown {
+  from { opacity: 0; transform: translate(-50%, -20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* 4. نبض (للحالة متصل) */
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* 5. تأثير الضغط (Pop) */
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* ----------------------------------------- */
+/* تنسيق العناصر (Components)    */
+/* ----------------------------------------- */
+
+/* الحاوية الرئيسية */
+.main-container {
+  animation: fadeIn 0.8s ease-out;
+}
+
+/* البطاقات */
+.card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  transition: all 0.3s ease;
+  animation: slideUp 0.6s ease-out;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
+}
+
+/* حقول الإدخال */
+.input-field {
+  width: 100%;
+  padding: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  font-size: 16px;
+  font-family: 'Cairo', sans-serif;
+  outline: none;
+  transition: all 0.3s ease;
+  background-color: #f8fafc;
+}
+
+.input-field:focus {
+  border-color: var(--primary);
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+/* الزر الأساسي (الأزرق) */
+.btn {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Cairo', sans-serif;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+}
+
+.btn:active {
+  animation: pop 0.2s ease-in-out;
+}
+
+.btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* زر الخروج (الأحمر) */
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger), var(--danger-hover));
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-family: 'Cairo', sans-serif;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+}
+
+.btn-danger:active {
+  animation: pop 0.2s ease-in-out;
+}
+
+/* نقطة الحالة (Status Dot) */
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0; /* المسافة يتحكم بها الـ flex في المكون */
+}
+
+.online { 
+  background-color: var(--success); 
+  animation: pulse 2s infinite; 
+}
+
+.offline { 
+  background-color: #cbd5e1; 
+}
+
+/* ----------------------------------------- */
+/* أنميشن خاص للعلم وشريط المعلومات */
+/* ----------------------------------------- */
+
+/* أنميشن رفرفة العلم */
+@keyframes flagWave {
+  0% { transform: rotate(0deg) translateY(0px); }
+  50% { transform: rotate(2deg) translateY(-2px); }
+  100% { transform: rotate(0deg) translateY(0px); }
+}
+
+/* أنميشن ظهور شريط المعلومات من الأسفل */
+@keyframes slideUpFooter {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- تنسيقات النوافذ المنبثقة (Modals) --- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px); /* تأثير الزجاج */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s;
+}
+
+.modal-content {
+  max-width: 90%;
+  width: 400px;
+  text-align: center;
+  border: 1px solid #e0e7ff;
+  animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* --- تنسيق الإشعار (Toast) --- */
+.toast-notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: slideDown 0.5s ease-out;
+  min-width: 300px;
+  justify-content: center;
+}
+
