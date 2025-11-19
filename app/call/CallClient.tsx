@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { ZegoUIKitPrebuilt } from '@zegocloud/zego-uikit-prebuilt'
 import { ZIM } from 'zego-zim-web'
 import { db } from '../../firebase/firebase' 
-import { ref, update, onDisconnect, serverTimestamp, get, push, onChildAdded } from 'firebase/database'
+import { ref, update, onDisconnect, serverTimestamp, get, push, onChildAdded, remove } from 'firebase/database'
 import UserSearch from '../components/UserSearch'
 import Header from '../components/Header'
 
@@ -83,7 +83,12 @@ export default function CallClient() {
 
         const userRef = ref(db, `users/${storedId}`);
         update(userRef, { online: true, isBusy: false, lastSeen: serverTimestamp() });
-        onDisconnect(userRef).update({ online: false });
+        
+        // 🟢 التعديل هنا: عند الانقطاع المفاجئ، يصبح غير متصل فقط (لا يُحذف)
+        onDisconnect(userRef).update({ 
+            online: false, 
+            lastSeen: serverTimestamp() 
+        });
 
         const notificationsRef = ref(db, `notifications/${storedId}`);
         onChildAdded(notificationsRef, (snapshot) => {
@@ -104,12 +109,14 @@ export default function CallClient() {
     }
   }, [router]);
 
+  // 🟢 دالة الخروج: هنا فقط يتم الحذف النهائي كما طلبت
   const handleLogout = () => {
       if(myId) {
-          update(ref(db, `users/${myId}`), { online: false });
+          remove(ref(db, `users/${myId}`)); // حذف نهائي
       }
       localStorage.removeItem('face2_userId');
       localStorage.removeItem('face2_username');
+      localStorage.removeItem('face2_avatar');
       if (zegoInstanceRef.current) zegoInstanceRef.current.destroy();
       window.location.href = '/setup';
   };
@@ -333,23 +340,13 @@ export default function CallClient() {
                </p>
                <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', marginBottom: '20px', fontSize: '14px', lineHeight: '1.6', color: '#334155' }}>
                  <p style={{ marginBottom: '10px' }}>تم تطوير هذا التطبيق بواسطة:</p>
-                 
-                 {/* 🟢 التعديل: جعل الاسم رابطاً للفيسبوك */}
                  <a 
                    href="https://www.facebook.com/share/1KjS11eHuP/" 
-                   target="_blank" 
-                   rel="noopener noreferrer"
-                   style={{ 
-                     fontSize: '18px', fontWeight: '800', color: '#4f46e5', 
-                     marginBottom: '15px', display: 'block', textDecoration: 'none',
-                     transition: 'color 0.2s'
-                   }}
-                   onMouseEnter={(e) => e.currentTarget.style.color = '#4338ca'}
-                   onMouseLeave={(e) => e.currentTarget.style.color = '#4f46e5'}
+                   target="_blank" rel="noopener noreferrer"
+                   style={{ fontSize: '18px', fontWeight: '800', color: '#4f46e5', marginBottom: '15px', display: 'block', textDecoration: 'none' }}
                  >
                    Mustafa Omar Ahmed ↗
                  </a>
-
                  <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '10px 0' }} />
                  <p style={{ fontSize: '13px', color: '#64748b' }}>
                    "يمكن لأي شخص إنشاء تطبيق بالذكاء الاصطناعي.. كل ما يهم هو <strong>فكرة الشخص</strong> وإصراره على بناء شيء جميل." ✨
@@ -379,7 +376,6 @@ export default function CallClient() {
                 
                 <div className="flex justify-between items-center w-full">
                   <Header />
-                  {/* 🟢 التعديل: زيادة المسافة (gap) هنا */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                     <span style={{ 
                         display: 'flex', alignItems: 'center', gap: '6px', 

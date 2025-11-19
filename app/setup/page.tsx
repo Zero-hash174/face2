@@ -2,10 +2,13 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { db } from '../../firebase/firebase' 
-import { ref, set, serverTimestamp, onDisconnect } from 'firebase/database'
+import { ref, set, onDisconnect, serverTimestamp } from 'firebase/database'
+
+const AVATARS = ['👨‍💻', '👩‍💻', '🦁', '🐱', '🐼', '👽', '🤖', '🎃', '👻', '🦊', '🐸', '🦄'];
 
 export default function SetupPage() {
   const [username, setUsername] = useState('')
+  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0]) 
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -24,15 +27,24 @@ export default function SetupPage() {
     try {
       localStorage.setItem('face2_userId', userId);
       localStorage.setItem('face2_username', username);
+      localStorage.setItem('face2_avatar', selectedAvatar);
 
       const userRef = ref(db, `users/${userId}`);
+      
       await set(userRef, {
         username: username,
+        avatar: selectedAvatar,
         id: userId,
         online: true,
+        isBusy: false,
         lastSeen: serverTimestamp()
       });
-      onDisconnect(userRef).update({ online: false });
+
+      // 🟢 التعديل هنا: عند الانفصال، يصبح "غير متصل" فقط ولا يُحذف
+      onDisconnect(userRef).update({ 
+        online: false, 
+        lastSeen: serverTimestamp() 
+      });
 
       router.push('/call');
     } catch (error) {
@@ -43,22 +55,33 @@ export default function SetupPage() {
 
   return (
     <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'linear-gradient(135deg, #f3f4f6 0%, #e0e7ff 100%)' 
     }}>
       <div className="card" style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
-        {/* أيقونة تعبيرية */}
-        <div style={{ fontSize: '50px', marginBottom: '10px' }}>👋</div>
+        <div style={{ fontSize: '40px', marginBottom: '10px' }}>{selectedAvatar}</div>
         
         <h2 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: '#111827' }}>
           أهلاً بك في Face2
         </h2>
-        <p style={{ color: '#6b7280', marginBottom: '30px' }}>
-          تطبيق مكالمات فيديو بسيط وسريع. <br/> ابدأ بكتابة اسمك.
-        </p>
+        <p style={{ color: '#6b7280', marginBottom: '20px' }}>اختر شخصيتك واسمك</p>
+
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '20px' }}>
+          {AVATARS.map((avatar) => (
+            <button
+              key={avatar}
+              type="button"
+              onClick={() => setSelectedAvatar(avatar)}
+              style={{
+                fontSize: '24px', padding: '10px', border: selectedAvatar === avatar ? '2px solid #4f46e5' : '2px solid transparent',
+                borderRadius: '12px', background: selectedAvatar === avatar ? '#e0e7ff' : '#f9fafb', cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {avatar}
+            </button>
+          ))}
+        </div>
 
         <form onSubmit={handleSubmit}>
           <input

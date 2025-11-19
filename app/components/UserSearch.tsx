@@ -69,26 +69,25 @@ export default function UserSearch({ onCall }: { onCall: (user: { id: string, us
             border: '1px solid #f1f5f9',
             borderRadius: '16px',
             transition: 'all 0.3s ease',
-            background: user.online ? '#f0fdf4' : '#fff', // خلفية خضراء فاتحة للمتصل
-            /* 🟢 أنميشن ظهور متتابع للعناصر */
+            background: user.online ? '#f0fdf4' : '#fff',
             animation: `slideUp 0.5s ease-out forwards`,
-            animationDelay: `${index * 0.1}s`, // تأخير زمني لكل عنصر
-            opacity: 0 // البداية مخفي
+            animationDelay: `${index * 0.1}s`,
+            opacity: 0 
           }}
           onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
           onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              {/* دائرة الحرف الأول */}
+              
+              {/* 🟢 عرض الصورة الرمزية هنا */}
               <div style={{
                 width: '48px', height: '48px', borderRadius: '50%',
                 background: user.online ? '#dcfce7' : '#f1f5f9',
-                color: user.online ? '#15803d' : '#64748b',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 'bold', fontSize: '20px',
+                fontSize: '28px', // حجم كبير للإيموجي
                 boxShadow: user.online ? '0 0 15px rgba(16, 185, 129, 0.2)' : 'none'
               }}>
-                {user.username.charAt(0).toUpperCase()}
+                {user.avatar || '👤'} 
               </div>
               
               <div>

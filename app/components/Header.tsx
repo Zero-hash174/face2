@@ -1,16 +1,25 @@
-import React from 'react'
+'use client'
+import React, { useEffect, useState } from 'react'
 
 export default function Header() {
+  const [myAvatar, setMyAvatar] = useState('👤');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedAvatar = localStorage.getItem('face2_avatar');
+      if (storedAvatar) setMyAvatar(storedAvatar);
+    }
+  }, []);
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      {/* 🟢 أيقونة جديدة بدلاً من الكاميرا أو يمكنك وضع شعار نصي بسيط */}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      {/* 🟢 عرض صورتي الشخصية هنا */}
       <div style={{
-        width: '38px', height: '38px', background: '#6366f1', // لون أزرق جذاب
-        borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-        color: 'white', fontSize: '20px', fontWeight: '800', // حجم ووزن خط مميز
-        boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)', // ظل خفيف
+        width: '45px', height: '45px', background: '#f1f5f9', 
+        borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+        fontSize: '26px', border: '2px solid #e0e7ff'
       }}>
-        ✨
+        {myAvatar}
       </div>
       <h3 style={{ fontWeight: '800', fontSize: '22px', color: '#111827', margin: 0 }}>
         Face2
