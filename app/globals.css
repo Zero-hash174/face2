@@ -24,40 +24,22 @@ body {
   font-family: 'Cairo', sans-serif;
   background-color: var(--bg-color);
   color: var(--text-main);
-  direction: rtl; /* الاتجاه من اليمين لليسار */
-  overflow-x: hidden; /* منع التمرير الأفقي */
+  direction: rtl;
+  overflow-x: hidden;
 }
 
 /* ----------------------------------------- */
 /* تعريف الحركات (Animations)      */
 /* ----------------------------------------- */
 
-/* 1. ظهور تدريجي */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* 2. انزلاق للأعلى */
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* 3. انزلاق للأسفل (للإشعارات) */
-@keyframes slideDown {
-  from { opacity: 0; transform: translate(-50%, -20px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
-
-/* 4. نبض (للحالة متصل) */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideDown { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
   70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
-
-/* 5. تأثير الضغط (Pop) */
 @keyframes pop {
   0% { transform: scale(1); }
   50% { transform: scale(0.95); }
@@ -68,12 +50,8 @@ body {
 /* تنسيق العناصر (Components)    */
 /* ----------------------------------------- */
 
-/* الحاوية الرئيسية */
-.main-container {
-  animation: fadeIn 0.8s ease-out;
-}
+.main-container { animation: fadeIn 0.8s ease-out; }
 
-/* البطاقات */
 .card {
   background: var(--card-bg);
   border-radius: 20px;
@@ -88,7 +66,6 @@ body {
   box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
 }
 
-/* حقول الإدخال */
 .input-field {
   width: 100%;
   padding: 16px;
@@ -128,9 +105,7 @@ body {
   box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
 }
 
-.btn:active {
-  animation: pop 0.2s ease-in-out;
-}
+.btn:active { animation: pop 0.2s ease-in-out; }
 
 .btn:disabled {
   background: #9ca3af;
@@ -139,11 +114,16 @@ body {
   transform: none;
 }
 
-/* زر الخروج (الأحمر) */
+/* 🔥 تحديث: زر الخروج/الحذف (الأحمر) ليطابق الزر الأزرق تماماً */
 .btn-danger {
+  width: 100%; /* ليأخذ العرض الكامل */
+  padding: 16px; /* نفس حشوة الزر الأزرق */
   background: linear-gradient(135deg, var(--danger), var(--danger-hover));
   color: white;
   border: none;
+  border-radius: 16px; /* نفس الانحناء */
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
   font-family: 'Cairo', sans-serif;
   transition: all 0.3s ease;
@@ -156,54 +136,28 @@ body {
   box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
 }
 
-.btn-danger:active {
-  animation: pop 0.2s ease-in-out;
-}
+.btn-danger:active { animation: pop 0.2s ease-in-out; }
 
-/* نقطة الحالة (Status Dot) */
+/* نقطة الحالة */
 .status-dot {
   width: 9px;
   height: 9px;
   border-radius: 50%;
   display: inline-block;
   vertical-align: middle;
-  margin-left: 0; /* المسافة يتحكم بها الـ flex في المكون */
+  margin-left: 0;
 }
 
-.online { 
-  background-color: var(--success); 
-  animation: pulse 2s infinite; 
-}
+.online { background-color: var(--success); animation: pulse 2s infinite; }
+.offline { background-color: #cbd5e1; }
 
-.offline { 
-  background-color: #cbd5e1; 
-}
-
-/* ----------------------------------------- */
-/* أنميشن خاص للعلم وشريط المعلومات */
-/* ----------------------------------------- */
-
-/* أنميشن رفرفة العلم */
-@keyframes flagWave {
-  0% { transform: rotate(0deg) translateY(0px); }
-  50% { transform: rotate(2deg) translateY(-2px); }
-  100% { transform: rotate(0deg) translateY(0px); }
-}
-
-/* أنميشن ظهور شريط المعلومات من الأسفل */
-@keyframes slideUpFooter {
-  from { opacity: 0; transform: translateY(100%); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* --- تنسيقات النوافذ المنبثقة (Modals) --- */
-
+/* النوافذ والإشعارات */
 .modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 20000;
   background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px); /* تأثير الزجاج */
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -218,7 +172,6 @@ body {
   animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* --- تنسيق الإشعار (Toast) --- */
 .toast-notification {
   position: fixed;
   top: 20px;
@@ -237,4 +190,3 @@ body {
   min-width: 300px;
   justify-content: center;
 }
-
