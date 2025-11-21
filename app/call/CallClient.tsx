@@ -17,7 +17,7 @@ const WARNING_COUNTDOWN_SEC = 15;
 type CallLog = {
   id: string;
   name: string;
-  avatar?: string; // 🟢 جديد: حقل لتخزين الآيموجي
+  avatar?: string;
   status: 'completed' | 'rejected' | 'missed' | 'blocked' | 'timeout';
   duration?: string;
   time: string;
@@ -43,7 +43,7 @@ export default function CallClient() {
   const callStartTimeRef = useRef<number | null>(null);
   
   const currentPeerNameRef = useRef<string>("");
-  const currentPeerAvatarRef = useRef<string>("👤"); // 🟢 جديد: لحفظ آيموجي الطرف الآخر أثناء المكالمة
+  const currentPeerAvatarRef = useRef<string>("👤");
   const currentRoomIdRef = useRef<string>("");
 
   const router = useRouter();
@@ -55,7 +55,6 @@ export default function CallClient() {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  // دالة مساعدة لجلب آيموجي أي مستخدم من قاعدة البيانات
   const getUserAvatar = async (userId: string) => {
     try {
       const snapshot = await get(ref(db, `users/${userId}/avatar`));
@@ -103,13 +102,24 @@ export default function CallClient() {
     }
   };
 
+  // 🛠️ تعديل جذري لإنهاء المكالمة لضمان وصول الإشارة للطرف الآخر
   const forceEndCall = () => {
     setCallStatus('IDLE');
     if (myId) update(ref(db, `users/${myId}`), { inMeeting: false });
+    
+    // إخفاء الفيديو فوراً لتحسين تجربة المستخدم
+    if(videoContainerRef.current) videoContainerRef.current.innerHTML = ''; 
+
     if (zegoInstanceRef.current) {
-        try { zegoInstanceRef.current.hangUp(); } catch(e){}
+        try { 
+            zegoInstanceRef.current.hangUp(); 
+        } catch(e){}
     }
-    window.location.href = '/setup';
+
+    // ⏳ تأخير بسيط جداً قبل تحديث الصفحة للسماح بوصول إشارة "الإنهاء" للطرف الآخر
+    setTimeout(() => {
+        window.location.href = '/setup';
+    }, 300); 
   };
 
   useEffect(() => {
@@ -189,7 +199,6 @@ export default function CallClient() {
           if (data && !data.read) {
             update(ref(db, `notifications/${storedId}/${snapshot.key}`), { read: true });
 
-            // 🟢 جلب آيموجي المتصل للمكالمة الفائتة
             let callerAvatar = "👤";
             if (data.callerId) {
                 callerAvatar = await getUserAvatar(data.callerId);
@@ -199,7 +208,7 @@ export default function CallClient() {
               addCallLog({
                 id: `missed_${Date.now()}`,
                 name: data.callerName,
-                avatar: callerAvatar, // تخزين الآيموجي
+                avatar: callerAvatar,
                 status: 'blocked',
                 time: new Date(data.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
                 type: 'incoming'
@@ -223,7 +232,6 @@ export default function CallClient() {
     window.location.href = '/setup';
   };
 
-  // 🟢 إعداد Zego Cloud
   useEffect(() => {
     if (!myId || !username) return;
     if (zegoInstanceRef.current) return;
@@ -263,15 +271,13 @@ export default function CallClient() {
               showMyMicrophoneToggleButton: true,
               showAudioVideoSettingsButton: true, 
 
+              // 🛠️ تحديث: إنهاء المكالمة فوراً عند خروج الطرف الآخر بدون انتظار
               onUserLeave: (users) => {
-                users.forEach((user) => {
-                   showToast(`📴 ${user.userName} غادر المكالمة`, 'info');
-                   setTimeout(() => {
-                      forceEndCall();
-                   }, 1000);
-                });
+                   showToast(`📴 الطرف الآخر أنهى المكالمة`, 'info');
+                   forceEndCall(); // تنفيذ فوري للخروج
               },
 
+              // 🛠️ عند مغادرة الغرفة محلياً
               onLeaveRoom: () => {
                 forceEndCall();
               }
@@ -286,7 +292,6 @@ export default function CallClient() {
             currentRoomIdRef.current = callID;
             currentPeerNameRef.current = caller.userName || "مجهول";
             
-            // 🟢 محاولة جلب آيموجي المتصل فور وصول الاتصال
             getUserAvatar(caller.userID).then(avatar => {
                 currentPeerAvatarRef.current = avatar;
             });
@@ -310,7 +315,7 @@ export default function CallClient() {
             addCallLog({ 
               id: `rejected_${Date.now()}`, 
               name: callee.userName || "مستخدم",
-              avatar: currentPeerAvatarRef.current, // حفظ الآيموجي
+              avatar: currentPeerAvatarRef.current,
               status: 'rejected', 
               time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), 
               type: 'outgoing' 
@@ -324,7 +329,7 @@ export default function CallClient() {
                 addCallLog({
                   id: `call_${Date.now()}`,
                   name: currentPeerNameRef.current || "مستخدم",
-                  avatar: currentPeerAvatarRef.current, // 🟢 حفظ آيموجي الطرف الآخر في السجل
+                  avatar: currentPeerAvatarRef.current,
                   status: 'completed',
                   duration: formatDuration(durationMs),
                   time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
@@ -359,7 +364,6 @@ export default function CallClient() {
       const snapshot = await get(ref(db, `users/${targetId}`));
       const userData = snapshot.val();
 
-      // 🟢 حفظ الآيموجي فوراً عند بدء الاتصال (من بيانات البحث أو القاعدة)
       if (userData && userData.avatar) {
          currentPeerAvatarRef.current = userData.avatar;
       } else {
@@ -422,22 +426,24 @@ export default function CallClient() {
         </div>
       )}
 
-      {/* زر العلم السوداني */}
-      <div 
-        className="sudan-flag" 
-        onClick={() => setShowAboutModal(true)} 
-        style={{ 
-          position: 'fixed', top: '15px', left: '15px', zIndex: 9999, 
-          width: '45px', height: '30px', borderRadius: '5px', overflow: 'hidden', 
-          boxShadow: '0 4px 10px rgba(0,0,0,0.2)', cursor: 'pointer', transition: 'transform 0.2s' 
-        }} 
-        title="عن المطور 🇸🇩"
-      >
-            <div style={{ height: '33.3%', background: '#DE0000' }}></div>
-            <div style={{ height: '33.3%', background: '#FFFFFF' }}></div>
-            <div style={{ height: '33.3%', background: '#000000' }}></div>
-            <div style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, borderTop: '15px solid transparent', borderBottom: '15px solid transparent', borderLeft: '20px solid #007229' }}></div>
-      </div>
+      {/* 🟢 يظهر العلم فقط إذا كانت الحالة IDLE (ليست في مكالمة) */}
+      {callStatus === 'IDLE' && (
+        <div 
+            className="sudan-flag" 
+            onClick={() => setShowAboutModal(true)} 
+            style={{ 
+            position: 'fixed', top: '15px', left: '15px', zIndex: 9999, 
+            width: '45px', height: '30px', borderRadius: '5px', overflow: 'hidden', 
+            boxShadow: '0 4px 10px rgba(0,0,0,0.2)', cursor: 'pointer', transition: 'transform 0.2s' 
+            }} 
+            title="عن المطور 🇸🇩"
+        >
+                <div style={{ height: '33.3%', background: '#DE0000' }}></div>
+                <div style={{ height: '33.3%', background: '#FFFFFF' }}></div>
+                <div style={{ height: '33.3%', background: '#000000' }}></div>
+                <div style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, borderTop: '15px solid transparent', borderBottom: '15px solid transparent', borderLeft: '20px solid #007229' }}></div>
+        </div>
+      )}
 
       {callStatus === 'IDLE' && (
         <>
@@ -491,14 +497,12 @@ export default function CallClient() {
               ) : callHistory.map((log) => (
                 <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderBottom: '1px solid #f1f5f9' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {/* 🟢 عرض آيموجي المستخدم في السجل */}
                     <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f1f5f9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '20px', border:'1px solid #e2e8f0' }}>
                         {log.avatar || log.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <p style={{ margin: 0, fontWeight: 'bold', fontSize: '14px', textAlign: 'right' }}>{log.name}</p>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#64748b' }}>
-                        {/* آيموجيات الحالة */}
                         <span>
                             {log.status === 'completed' ? '✅ مكالمة ناجحة' : 
                              log.status === 'rejected' ? '🚫 مكالمة مرفوضة' : 

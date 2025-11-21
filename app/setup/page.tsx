@@ -4,7 +4,15 @@ import { useRouter } from 'next/navigation'
 import { db } from '../../firebase/firebase' 
 import { ref, set, onDisconnect, serverTimestamp } from 'firebase/database'
 
-const AVATARS = ['👨‍💻', '👩‍💻', '🦁', '🐱', '🐼', '👽', '🤖', '🎃', '👻', '🦊', '🐸', '🦄'];
+// 🟢 تم تحديث القائمة فقط وإضافة إيموجيات جديدة
+const AVATARS = [
+  "🦁", "🐯", "🐱", "🐶", "🦊", "🐻", "🐨", "🐼",
+  "🐸", "🦄", "🐲", "🦖", "🐳", "🐙", "🦉", "🦅",
+  "🧑‍🚀", "🦸‍♂️", "🥷", "🧙‍♂️", "🧛‍♂️", "🧟‍♂️", "🧞‍♂️", "🧚‍♀️",
+  "🤖", "👾", "👻", "👽", "🤡", "💀", "🎃", "🤠",
+  "😎", "🤓", "🥳", "🥶", "🤯", "🤑", "😷", "🤒",
+  "👨‍💻", "👩‍💻", "👶", "👮‍♂️", "👷‍♂️", "🤴", "👸", "👳‍♂️"
+];
 
 export default function SetupPage() {
   const [username, setUsername] = useState('')
@@ -66,7 +74,17 @@ export default function SetupPage() {
         </h2>
         <p style={{ color: '#6b7280', marginBottom: '20px' }}>اختر شخصيتك واسمك</p>
 
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '20px' }}>
+        {/* تم إضافة overflow-y لجعل القائمة قابلة للتمرير لأن العدد زاد */}
+        <div style={{ 
+            display: 'flex', 
+            gap: '10px', 
+            flexWrap: 'wrap', 
+            justifyContent: 'center', 
+            marginBottom: '20px',
+            maxHeight: '200px', // تحديد ارتفاع
+            overflowY: 'auto', // إضافة سكرول
+            padding: '5px'
+        }}>
           {AVATARS.map((avatar) => (
             <button
               key={avatar}
