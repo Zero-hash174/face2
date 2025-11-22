@@ -14,8 +14,7 @@ import Header from '../components/Header'
 const APP_ID = 221724333;
 const SERVER_SECRET = "480e962860b99d4828e308ff7f340cf8";
 
-// 🟢🟢 الرابط الرسمي الثابت (استراتيجية الجذب) 🟢🟢
-// الآن أي رابط دعوة سيخرج من التطبيق سيكون موجهاً لهذا النطاق حصراً
+// الرابط الرسمي
 const PUBLIC_DOMAIN = "https://face2-three.vercel.app"; 
 
 const CALL_LIMIT_MS = 60 * 60 * 1000;
@@ -45,13 +44,15 @@ export default function CallClient() {
   const [showTimeoutModal, setShowTimeoutModal] = useState(false);
   const [autoEndCountdown, setAutoEndCountdown] = useState(WARNING_COUNTDOWN_SEC);
 
+  // 🟢 حالة جديدة: لتخزين بيانات الشخص الذي دعاك عبر الرابط
+  const [invitedUser, setInvitedUser] = useState<any>(null);
+
   const searchParams = useSearchParams();
   const targetIdFromLink = searchParams.get('target');
 
   const callLimitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const callStartTimeRef = useRef<number | null>(null);
-  
   const currentPeerNameRef = useRef<string>("");
   const currentPeerAvatarRef = useRef<string>("👤");
   const currentRoomIdRef = useRef<string>("");
@@ -60,86 +61,85 @@ export default function CallClient() {
   const zegoInstanceRef = useRef<ZegoUIKitPrebuilt | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
-  // دالة تشغيل الاهتزاز
+  // دالة الاهتزاز
   const startVibration = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200]); 
     }
   };
 
-  // دالة إيقاف الاهتزاز
   const stopVibration = () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(0);
-    }
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(0);
   };
 
-  // 🟢 دالة المشاركة الذكية (تستخدم الرابط الرسمي دائماً)
+  // المشاركة
   const shareInviteSmart = async () => {
     if (!myId) return;
-    
-    // سيتم استخدام رابط Vercel الرسمي دائماً
     const inviteLink = `${PUBLIC_DOMAIN}/call?target=${myId}`;
-    
     const title = "دعوة مكالمة Face2";
-    const text = `مرحباً 👋
-أنا *${username}* وأدعوك لمكالمة فيديو آمنة وسريعة عبر تطبيق *Face2*.
-
-📞 رقم الاجتماع: ${myId}
-👇 اضغط هنا للرد مباشرة:
-${inviteLink}`;
+    const text = `مرحباً 👋\nأنا *${username}* وأدعوك لمكالمة فيديو آمنة وسريعة عبر تطبيق *Face2*.\n\n📞 رقم الاجتماع: ${myId}\n👇 اضغط هنا للرد مباشرة:\n${inviteLink}`;
 
     if (navigator.share) {
-      try {
-        await navigator.share({ title, text, url: inviteLink });
-      } catch (error) { console.log('Sharing cancelled'); }
+      try { await navigator.share({ title, text, url: inviteLink }); } catch (error) {}
     } else {
-      try {
-        await navigator.clipboard.writeText(text);
-        showToast('✅ تم نسخ رابط الدعوة الرسمي!', 'info');
-      } catch (err) { showToast('❌ حدث خطأ.', 'error'); }
+      try { await navigator.clipboard.writeText(text); showToast('✅ تم نسخ رابط الدعوة الرسمي!', 'info'); } catch (err) { showToast('❌ حدث خطأ.', 'error'); }
     }
   };
 
-  // 🟢 دالة واتساب (تستخدم الرابط الرسمي دائماً)
   const sendWhatsAppInvite = () => {
     if (!myId) return;
-    
     const inviteLink = `${PUBLIC_DOMAIN}/call?target=${myId}`;
-    
-    const message = `مرحباً 👋
-أنا *${username}* وأدعوك لمكالمة فيديو آمنة وسريعة عبر تطبيق *Face2*.
-
-📞 رقم الاجتماع: ${myId}
-👇 اضغط هنا للرد مباشرة:
-${inviteLink}`;
-
+    const message = `مرحباً 👋\nأنا *${username}* وأدعوك لمكالمة فيديو آمنة وسريعة عبر تطبيق *Face2*.\n\n📞 رقم الاجتماع: ${myId}\n👇 اضغط هنا للرد مباشرة:\n${inviteLink}`;
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
-  // التعامل مع رابط الدعوة
+  // 🟢🟢 التعديل الذكي: جلب بيانات المستخدم من الرابط تلقائياً 🟢🟢
   useEffect(() => {
-    if (targetIdFromLink && isZegoReady && myId && targetIdFromLink !== myId) {
-       showToast(`🔗 لقد فتحت رابط دعوة. ابحث عن المستخدم في القائمة للاتصال به.`, 'info');
-    }
-  }, [targetIdFromLink, isZegoReady, myId]);
+    const fetchInvitedUser = async () => {
+        // نتأكد أن الرابط يحتوي على ID وأن هذا الـ ID ليس أنا
+        if (targetIdFromLink && myId && targetIdFromLink !== myId) {
+           try {
+             // جلب بيانات المستخدم من Firebase
+             const snapshot = await get(ref(db, `users/${targetIdFromLink}`));
+             if (snapshot.exists()) {
+                 const userData = snapshot.val();
+                 // حفظ البيانات لإظهار نافذة الاتصال
+                 setInvitedUser(userData);
+             } else {
+                 showToast("⚠️ رابط الدعوة غير صحيح أو المستخدم غير موجود.", "error");
+             }
+           } catch (error) {
+             console.error("Error fetching invited user:", error);
+           }
+        }
+    };
 
-  // ... (باقي الكود كما هو بدون تغيير) ...
+    // ننتظر حتى يتم تحميل الـ ID الخاص بي أولاً
+    if (myId) {
+        fetchInvitedUser();
+    }
+  }, [targetIdFromLink, myId]);
+
+
+  // 🟢 دالة قبول الدعوة من الرابط
+  const handleAcceptInvite = () => {
+      if (invitedUser) {
+          handleCallUser(invitedUser); // بدء الاتصال فوراً
+          setInvitedUser(null); // إغلاق النافذة
+          // تنظيف الرابط من الـ URL لكي لا يظهر مرة أخرى عند التحديث
+          router.replace('/call'); 
+      }
+  };
+
+  // ... (باقي useEffects الخاصة بـ Zego والـ Auth كما هي تماماً بدون تغيير) ...
   useEffect(() => {
     if (callStatus === 'CONNECTED') {
-      document.body.style.overflow = 'hidden'; 
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden'; document.body.style.position = 'fixed'; document.body.style.width = '100%';
     } else {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+      document.body.style.overflow = ''; document.body.style.position = ''; document.body.style.width = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-    };
+    return () => { document.body.style.overflow = ''; document.body.style.position = ''; };
   }, [callStatus]);
 
   useEffect(() => {
@@ -210,95 +210,48 @@ ${inviteLink}`;
   };
 
   useEffect(() => {
-    if (callStatus === 'CONNECTED') {
-      startInactivityTimer();
-    } else {
-      clearTimers();
-    }
+    if (callStatus === 'CONNECTED') { startInactivityTimer(); } else { clearTimers(); }
     return () => clearTimers();
   }, [callStatus]);
 
   const startInactivityTimer = () => {
     if (callLimitTimerRef.current) clearTimeout(callLimitTimerRef.current);
-    callLimitTimerRef.current = setTimeout(() => {
-      setShowTimeoutModal(true);
-      startCountdown();
-    }, CALL_LIMIT_MS);
+    callLimitTimerRef.current = setTimeout(() => { setShowTimeoutModal(true); startCountdown(); }, CALL_LIMIT_MS);
   };
 
   const startCountdown = () => {
     setAutoEndCountdown(WARNING_COUNTDOWN_SEC);
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     countdownIntervalRef.current = setInterval(() => {
-      setAutoEndCountdown((prev) => {
-        if (prev <= 1) {
-          handleAutoHangup();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setAutoEndCountdown((prev) => { if (prev <= 1) { handleAutoHangup(); return 0; } return prev - 1; });
     }, 1000);
   };
 
-  const handleAutoHangup = () => {
-    clearTimers();
-    setShowTimeoutModal(false);
-    forceEndCall();
-  };
+  const handleAutoHangup = () => { clearTimers(); setShowTimeoutModal(false); forceEndCall(); };
+  const handleContinueCall = () => { setShowTimeoutModal(false); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); startInactivityTimer(); showToast("✅ تم تمديد المكالمة، استمتع!", "info"); };
+  const clearTimers = () => { if (callLimitTimerRef.current) clearTimeout(callLimitTimerRef.current); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); setShowTimeoutModal(false); };
 
-  const handleContinueCall = () => {
-    setShowTimeoutModal(false);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    startInactivityTimer();
-    showToast("✅ تم تمديد المكالمة، استمتع!", "info");
-  };
-
-  const clearTimers = () => {
-    if (callLimitTimerRef.current) clearTimeout(callLimitTimerRef.current);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    setShowTimeoutModal(false);
-  };
-
-  // تهيئة المستخدم
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedId = localStorage.getItem('face2_userId');
       const storedUsername = localStorage.getItem('face2_username');
       const storedHistory = localStorage.getItem('face2_history');
-
       if (storedHistory) { try { setCallHistory(JSON.parse(storedHistory)); } catch (e) { } }
-
-      if (!storedId || !storedUsername) {
-        router.push('/setup');
-      } else {
-        setMyId(storedId);
-        setUsername(storedUsername);
-
+      if (!storedId || !storedUsername) { router.push('/setup'); } else {
+        setMyId(storedId); setUsername(storedUsername);
         const userRef = ref(db, `users/${storedId}`);
         update(userRef, { online: true, isBusy: false, inMeeting: false, lastSeen: serverTimestamp() });
         onDisconnect(userRef).update({ online: false, inMeeting: false, lastSeen: serverTimestamp() });
-
         const notificationsRef = ref(db, `notifications/${storedId}`);
         onChildAdded(notificationsRef, async (snapshot) => {
           const data = snapshot.val();
           if (data && !data.read) {
             update(ref(db, `notifications/${storedId}/${snapshot.key}`), { read: true });
-            let callerAvatar = "👤";
-            if (data.callerId) callerAvatar = await getUserAvatar(data.callerId);
-
+            let callerAvatar = "👤"; if (data.callerId) callerAvatar = await getUserAvatar(data.callerId);
             if (data.type === 'missed_call') {
-              addCallLog({
-                id: `missed_${Date.now()}`,
-                name: data.callerName,
-                avatar: callerAvatar,
-                status: 'blocked',
-                time: new Date(data.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-                type: 'incoming'
-              });
+              addCallLog({ id: `missed_${Date.now()}`, name: data.callerName, avatar: callerAvatar, status: 'blocked', time: new Date(data.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'incoming' });
               showToast(`⛔ ${data.callerName} حاول الاتصال بك وأنت مشغول.`, 'info');
-            } else {
-              showToast(`🔔 إشعار: ${data.callerName} حاول الاتصال بك.`, 'info');
-            }
+            } else { showToast(`🔔 إشعار: ${data.callerName} حاول الاتصال بك.`, 'info'); }
           }
         });
       }
@@ -307,78 +260,51 @@ ${inviteLink}`;
 
   const handleLogout = () => {
     if (myId) { remove(ref(db, `users/${myId}`)); }
-    localStorage.removeItem('face2_userId');
-    localStorage.removeItem('face2_username');
-    localStorage.removeItem('face2_avatar');
+    localStorage.removeItem('face2_userId'); localStorage.removeItem('face2_username'); localStorage.removeItem('face2_avatar');
     if (zegoInstanceRef.current) zegoInstanceRef.current.destroy();
     window.location.href = '/setup';
   };
 
-  // تهيئة Zego
   useEffect(() => {
-    if (!myId || !username) return;
-    if (zegoInstanceRef.current) return;
-
+    if (!myId || !username) return; if (zegoInstanceRef.current) return;
     const initZego = async () => {
       try {
         const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(APP_ID, SERVER_SECRET, "face2_global_room", myId, username);
         const zp = ZegoUIKitPrebuilt.create(kitToken);
         zp.addPlugins({ ZIM });
         zegoInstanceRef.current = zp;
-
         zp.setCallInvitationConfig({
           onSetRoomConfigBeforeJoining: (callType) => {
-            stopVibration(); 
-            setCallStatus('CONNECTED');
-            callStartTimeRef.current = Date.now();
+            stopVibration(); setCallStatus('CONNECTED'); callStartTimeRef.current = Date.now();
             if (myId) update(ref(db, `users/${myId}`), { inMeeting: true });
-
             return {
               container: videoContainerRef.current,
               scenario: { mode: ZegoUIKitPrebuilt.OneONoneCall },
               videoResolutionList: [ZegoUIKitPrebuilt.VideoResolution_180P],
               videoResolutionDefault: ZegoUIKitPrebuilt.VideoResolution_180P,
-              showScreenSharingButton: false,
-              maxMemberCount: 2,
-              showPreJoinView: false,
-              turnOnMicrophoneWhenJoining: true,
-              turnOnCameraWhenJoining: true,
-              showMyCameraToggleButton: true,
-              showMyMicrophoneToggleButton: true,
-              showAudioVideoSettingsButton: true,
+              showScreenSharingButton: false, maxMemberCount: 2, showPreJoinView: false,
+              turnOnMicrophoneWhenJoining: true, turnOnCameraWhenJoining: true, showMyCameraToggleButton: true, showMyMicrophoneToggleButton: true, showAudioVideoSettingsButton: true,
               onUserLeave: (users) => { showToast(`📴 الطرف الآخر أنهى المكالمة`, 'info'); forceEndCall(); },
               onLeaveRoom: () => { forceEndCall(); }
             };
           },
           onIncomingCallReceived: (callID, caller) => {
-            if (isDoNotDisturb && zegoInstanceRef.current) { 
-                zegoInstanceRef.current.hangUp(); 
-                return; 
-            }
-            startVibration(); 
-            currentRoomIdRef.current = callID;
-            currentPeerNameRef.current = caller.userName || "مجهول";
+            if (isDoNotDisturb && zegoInstanceRef.current) { zegoInstanceRef.current.hangUp(); return; }
+            startVibration(); currentRoomIdRef.current = callID; currentPeerNameRef.current = caller.userName || "مجهول";
             getUserAvatar(caller.userID).then(avatar => { currentPeerAvatarRef.current = avatar; });
           },
-          onIncomingCallCanceled: () => { 
-            stopVibration(); 
-            setCallStatus('IDLE'); 
-            if (myId) update(ref(db, `users/${myId}`), { inMeeting: false }); 
-          },
+          onIncomingCallCanceled: () => { stopVibration(); setCallStatus('IDLE'); if (myId) update(ref(db, `users/${myId}`), { inMeeting: false }); },
           onOutgoingCallAccepted: (callID) => { setCallStatus('CONNECTED'); currentRoomIdRef.current = callID; },
           onOutgoingCallDeclined: (callID, callee) => {
-            showToast(`❌ للأسف، رفض ${callee.userName} المكالمة.`, 'error');
-            setCallStatus('IDLE');
+            showToast(`❌ للأسف، رفض ${callee.userName} المكالمة.`, 'error'); setCallStatus('IDLE');
             if (myId) update(ref(db, `users/${myId}`), { inMeeting: false });
             addCallLog({ id: `rejected_${Date.now()}`, name: callee.userName || "مستخدم", avatar: currentPeerAvatarRef.current, status: 'rejected', time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'outgoing' });
           },
           onCallInvitationEnded: (reason, data) => {
-            stopVibration(); 
+            stopVibration();
             if (callStartTimeRef.current) {
               const durationMs = Date.now() - callStartTimeRef.current;
-              if (durationMs > 1000) {
-                addCallLog({ id: `call_${Date.now()}`, name: currentPeerNameRef.current || "مستخدم", avatar: currentPeerAvatarRef.current, status: 'completed', duration: formatDuration(durationMs), time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'outgoing' });
-              }
+              if (durationMs > 1000) { addCallLog({ id: `call_${Date.now()}`, name: currentPeerNameRef.current || "مستخدم", avatar: currentPeerAvatarRef.current, status: 'completed', duration: formatDuration(durationMs), time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'outgoing' }); }
               callStartTimeRef.current = null;
             }
             if (callStatus === 'CONNECTED') { forceEndCall(); } else { setCallStatus('IDLE'); if (myId) update(ref(db, `users/${myId}`), { inMeeting: false }); if(videoContainerRef.current) videoContainerRef.current.innerHTML = ''; }
@@ -388,14 +314,7 @@ ${inviteLink}`;
       } catch (error) { console.error(error); }
     };
     initZego();
-
-    return () => {
-        stopVibration(); 
-        if (zegoInstanceRef.current) {
-            zegoInstanceRef.current.destroy();
-            zegoInstanceRef.current = null;
-        }
-    };
+    return () => { stopVibration(); if (zegoInstanceRef.current) { zegoInstanceRef.current.destroy(); zegoInstanceRef.current = null; } };
   }, [myId, username, isDoNotDisturb]);
 
   const handleCallUser = async (targetUser: { id: string, username: string }) => {
@@ -403,31 +322,19 @@ ${inviteLink}`;
     showToast(`...`, "info");
     const targetId = targetUser.id.trim();
     const targetName = targetUser.username || "مستخدم";
-
     try {
       const snapshot = await get(ref(db, `users/${targetId}`));
       const userData = snapshot.val();
-
-      if (userData && userData.avatar) currentPeerAvatarRef.current = userData.avatar;
-      else currentPeerAvatarRef.current = "👤";
-
-      if (userData && userData.isBusy) {
-        push(ref(db, `notifications/${targetId}`), { callerName: username, callerId: myId, timestamp: serverTimestamp(), read: false, type: 'missed_call' });
-        showToast(`🔕 ${targetName} في وضع "عدم الإزعاج".`, 'info');
-        return;
-      }
+      if (userData && userData.avatar) currentPeerAvatarRef.current = userData.avatar; else currentPeerAvatarRef.current = "👤";
+      if (userData && userData.isBusy) { push(ref(db, `notifications/${targetId}`), { callerName: username, callerId: myId, timestamp: serverTimestamp(), read: false, type: 'missed_call' }); showToast(`🔕 ${targetName} في وضع "عدم الإزعاج".`, 'info'); return; }
       if (userData && userData.inMeeting) { showToast(`⚠️ ${targetName} في مكالمة فيديو أخرى حالياً.`, 'error'); return; }
-
       showToast(`📞 جاري الاتصال بـ ${targetUser.username}...`, "info");
       currentPeerNameRef.current = targetName;
       zegoInstanceRef.current.sendCallInvitation({ callees: [{ userID: targetId, userName: targetName }], callType: ZegoUIKitPrebuilt.InvitationTypeVideoCall, timeout: 60 }).then((res) => { if (res.errorInvitees.length) showToast("📴 تعذر الاتصال (المستخدم غير متصل).", 'error'); });
     } catch (err) { console.error(err); showToast("❌ خطأ في الاتصال بالشبكة", 'error'); }
   };
 
-  const theme = {
-    bg: darkMode ? '#0f172a' : '#f9fafb', card: darkMode ? '#1e293b' : '#ffffff', text: darkMode ? '#f1f5f9' : '#1f2937',
-    subText: darkMode ? '#94a3b8' : '#6b7280', border: darkMode ? '#334155' : '#f3f4f6', accentText: darkMode ? '#818cf8' : '#4f46e5', modalBg: darkMode ? '#1e293b' : '#ffffff'
-  };
+  const theme = { bg: darkMode ? '#0f172a' : '#f9fafb', card: darkMode ? '#1e293b' : '#ffffff', text: darkMode ? '#f1f5f9' : '#1f2937', subText: darkMode ? '#94a3b8' : '#6b7280', border: darkMode ? '#334155' : '#f3f4f6', accentText: darkMode ? '#818cf8' : '#4f46e5', modalBg: darkMode ? '#1e293b' : '#ffffff' };
 
   return (
     <div className="main-container" style={{ backgroundColor: theme.bg, minHeight: '100vh', paddingBottom: '70px', position: 'relative', transition: 'background-color 0.4s ease-in-out, color 0.4s ease-in-out' }}>
@@ -435,26 +342,37 @@ ${inviteLink}`;
            .zego_toast { display: none !important; }
            .ZegoRoomMessage { display: none !important; }
            .ZegoUIKitUser-mobile { z-index: 99999999 !important; }
-           
-           .ZegoUIKitPrebuilt-Call-Invitation-Page {
-               position: fixed !important; inset: 0 !important; z-index: 2147483647 !important;
-               background-color: #000 !important; height: 100vh !important; width: 100vw !important;
-               overflow: hidden !important; touch-action: none !important; 
-           }
-           .ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container {
-               display: flex !important; justify-content: center !important; align-items: center !important;
-               width: 100% !important; position: absolute !important; bottom: 80px !important; 
-               left: 50% !important; transform: translateX(-50%) !important; gap: 0 !important;
-           }
-           .ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container > div {
-               margin-inline: 60px !important; transform: scale(1.2) !important;
-           }
+           .ZegoUIKitPrebuilt-Call-Invitation-Page { position: fixed !important; inset: 0 !important; z-index: 2147483647 !important; background-color: #000 !important; height: 100vh !important; width: 100vw !important; overflow: hidden !important; touch-action: none !important; }
+           .ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container { display: flex !important; justify-content: center !important; align-items: center !important; width: 100% !important; position: absolute !important; bottom: 80px !important; left: 50% !important; transform: translateX(-50%) !important; gap: 0 !important; }
+           .ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container > div { margin-inline: 60px !important; transform: scale(1.2) !important; }
            ::-webkit-scrollbar { width: 8px; }
            ::-webkit-scrollbar-track { background: ${darkMode ? '#1e293b' : '#f1f1f1'}; }
            ::-webkit-scrollbar-thumb { background: ${darkMode ? '#475569' : '#c1c1c1'}; borderRadius: 10px; }
            ::-webkit-scrollbar-thumb:hover { background: ${darkMode ? '#64748b' : '#a8a8a8'}; }
       `}</style>
 
+      {/* 🟢🟢 نافذة الدعوة الخاصة الجديدة (الميزة المطلوبة) 🟢🟢 */}
+      {invitedUser && callStatus === 'IDLE' && (
+        <div className="modal-overlay">
+          <div className="card modal-content" style={{ backgroundColor: theme.modalBg, color: theme.text, padding: '30px' }}>
+            <div style={{ fontSize: '50px', marginBottom: '10px' }}>{invitedUser.avatar || '👤'}</div>
+            <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '5px' }}>دعوة خاصة من</h2>
+            <h1 style={{ fontSize: '28px', fontWeight: '900', color: theme.accentText, marginBottom: '20px' }}>{invitedUser.username}</h1>
+            <p style={{ color: theme.subText, marginBottom: '25px' }}>يريد إجراء مكالمة فيديو معك الآن 🎥</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button onClick={handleAcceptInvite} className="btn" style={{ backgroundColor: '#10b981', fontSize: '18px', padding: '14px' }}>
+                   📞 اتصال الآن
+                </button>
+                <button onClick={() => setInvitedUser(null)} className="btn-danger" style={{ backgroundColor: 'transparent', color: theme.subText, border: `1px solid ${theme.border}`, boxShadow: 'none' }}>
+                   تجاهل
+                </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* باقي النوافذ كما هي... */}
       {showTimeoutModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="card" style={{ width: '300px', textAlign: 'center', background: theme.modalBg, padding: '20px', color: theme.text }}>
@@ -482,17 +400,12 @@ ${inviteLink}`;
             <div className="flex justify-between items-center w-full">
               <Header />
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                
-                {/* زر المشاركة الذكي الشامل */}
                 <button onClick={shareInviteSmart} style={{ backgroundColor: '#4f46e5', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(79, 70, 229, 0.3)' }} title="دعوة صديق (مشاركة)">
                   <span style={{ fontSize: '22px', color: '#fff' }}>🔗</span>
                 </button>
-
-                {/* زر واتساب لا زال موجوداً كخيار سريع */}
                 <button onClick={sendWhatsAppInvite} style={{ backgroundColor: '#25D366', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(37, 211, 102, 0.3)' }} title="دعوة صديق عبر واتساب">
                   <span style={{ fontSize: '22px' }}>💬</span>
                 </button>
-
                 <button onClick={handleLogout} className="btn-danger" style={{ padding: '6px 16px', borderRadius: '20px', fontSize: '12px', width: 'auto' }}>خروج 👋</button>
               </div>
             </div>
@@ -509,16 +422,12 @@ ${inviteLink}`;
               <p style={{ color: theme.subText }}>اختر صديقاً وابدأ المحادثة فوراً 👇</p>
             </div>
             <div className="p-6 rounded-3xl shadow-xl border card" style={{ backgroundColor: theme.card, borderColor: theme.border, transition: 'background-color 0.4s ease' }}>
-              <UserSearch 
-                onCall={handleCallUser} 
-                inCall={false} 
-              />
+              <UserSearch onCall={handleCallUser} inCall={false} />
             </div>
           </div>
           <button onClick={() => setShowHistoryModal(true)} style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 1000, background: theme.card, padding: '12px 24px', borderRadius: '50px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', fontWeight: 'bold', fontSize: '14px', color: theme.text, border: `1px solid ${theme.border}`, display:'flex', alignItems:'center', gap:'8px' }}>🕒 السجل</button>
         </>
       )}
-      
       {showHistoryModal && (
         <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
           <div className="card modal-content" onClick={(e) => e.stopPropagation()} style={{ backgroundColor: theme.modalBg, color: theme.text }}>
