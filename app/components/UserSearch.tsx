@@ -1,133 +1,91 @@
-'use client'
-import { useState, useEffect } from 'react'
-import { db } from '../../firebase/firebase' 
-import { ref, onValue } from 'firebase/database'
+import { useState, useEffect } from 'react';
+import { db } from '../../firebase/firebase';
+import { ref, onValue, off, query, limitToLast } from 'firebase/database';
 
-export default function UserSearch({ onCall }: { onCall: (user: { id: string, username: string }) => void }){
-  const [search, setSearch] = useState('')
-  const [results, setResults] = useState<any[]>([])
-  const [loading, setLoading] = useState(true) // يبدأ بالتحميل فوراً
+// 1. إضافة inCall للخصائص (Props)
+export default function UserSearch({ onCall, inCall }: { onCall: (user: any) => void, inCall: boolean }) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // 🟢 تحميل المستخدمين تلقائياً عند فتح الصفحة
   useEffect(() => {
-    const usersRef = ref(db, 'users')
-    
-    // الاستماع للتغييرات في الوقت الحقيقي
-    const unsubscribe = onValue(usersRef, (snap) => {
-      const data = snap.val() || {}
-      const myId = localStorage.getItem('face2_userId')
-      
-      const arr = Object.keys(data)
-        .map(id => ({ id, ...data[id] }))
-        .filter(user => user.id !== myId) // استبعاد نفسي
-        .sort((a, b) => (b.online === true ? 1 : 0) - (a.online === true ? 1 : 0)); // ترتيب المتصل أولاً
+    // 2. إذا كنا في مكالمة، لا تقم بتشغيل المستمع (توفير موارد ضخم)
+    if (inCall) return;
 
-      setResults(arr)
-      setLoading(false)
+    let currentId = '';
+    if (typeof window !== 'undefined') {
+        currentId = localStorage.getItem('face2_userId') || '';
+    }
+
+    const recentUsersQuery = query(ref(db, 'users'), limitToLast(100));
+
+    const unsubscribe = onValue(recentUsersQuery, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const userList = Object.values(data).filter((u: any) => u.id !== currentId);
+        userList.sort((a: any, b: any) => {
+            if (a.online === b.online) return 0;
+            return a.online ? -1 : 1; 
+        });
+        setUsers(userList);
+      } else {
+        setUsers([]);
+      }
+      setLoading(false);
     });
 
-    return () => unsubscribe(); // تنظيف عند الخروج
-  }, []);
+    return () => off(recentUsersQuery);
+  }, [inCall]); // 3. إضافة inCall هنا لإعادة التشغيل عند انتهاء المكالمة
 
-  // فلترة النتائج بناءً على البحث (تصفية محلية سريعة)
-  const filteredResults = results.filter(user => 
-    user.username && user.username.toLowerCase().includes(search.toLowerCase())
+  // 4. إذا كنا في مكالمة، لا تعرض شيراً (إخفاء من الـ DOM)
+  if (inCall) return null;
+
+  const filteredUsers = users.filter(user => 
+    user.username && user.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="w-full">
-      <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '20px', color: '#1e293b' }}>
-        🔍 ابحث عن صديق
-      </h3>
-
-      {/* شريط البحث */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '25px' }}>
-        <input
-          className="input-field"
-          style={{ marginBottom: 0 }}
-          placeholder="اكتب الاسم للبحث السريع..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+    <div style={{ width: '100%' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ position: 'relative' }}>
+          <input 
+            type="text" 
+            placeholder="اكتب الاسم للبحث السريع..." 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+            className="input-field"
+            style={{ textAlign: 'right' }}
+          />
+          <span style={{ position: 'absolute', top: '16px', right: '15px', fontSize: '20px', color: '#9ca3af' }}>🔍</span>
+        </div>
       </div>
 
-      {loading && (
-        <p style={{textAlign: 'center', color: '#64748b', animation: 'pulse 1s infinite'}}>
-          جاري تحميل القائمة...
-        </p>
-      )}
-
-      {/* قائمة المستخدمين */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {filteredResults.length === 0 && !loading ? (
-           <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-             <p>لا يوجد مستخدمين آخرين حالياً 😴</p>
-             <p style={{ fontSize: '12px' }}>شارك الرابط مع أصدقائك!</p>
-           </div>
-        ) : (
-          filteredResults.map((user, index) => (
-            <div key={user.id} style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '16px',
-              border: '1px solid #f1f5f9',
-              borderRadius: '16px',
-              transition: 'all 0.3s ease',
-              background: user.online ? '#f0fdf4' : '#fff',
-              animation: `slideUp 0.5s ease-out forwards`,
-              animationDelay: `${index * 0.1}s`,
-              opacity: 0 // يبدأ مخفي ثم يظهر بالأنميشن
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                {/* الأفاتار */}
-                <div style={{
-                  width: '48px', height: '48px', borderRadius: '50%',
-                  background: user.online ? '#dcfce7' : '#f1f5f9',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '24px',
-                  boxShadow: user.online ? '0 0 15px rgba(16, 185, 129, 0.2)' : 'none'
-                }}>
-                  {user.avatar || '👤'}
-                </div>
-                
-                <div>
-                  <p style={{ fontWeight: '700', margin: 0, fontSize: '16px', color: '#334155' }}>
-                    {user.username}
-                  </p>
-                  <div style={{ fontSize: '13px', color: user.online ? '#10b981' : '#94a3b8', display: 'flex', alignItems: 'center', marginTop: '4px', gap: '5px' }}>
-                    <span className={`status-dot ${user.online ? 'online' : 'offline'}`}></span>
-                    {user.online ? (user.isBusy ? "مشغول" : "متصل الآن") : "غير متصل"}
+      <div style={{ padding: '5px' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', color: '#9ca3af', padding: '40px' }}>جاري تحميل القائمة... 🚀</div>
+        ) : filteredUsers.length > 0 ? (
+          filteredUsers.map((user) => {
+            const isBusy = user.isBusy && user.online;
+            return (
+              <div key={user.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: '#fff', borderRadius: '20px', marginBottom: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: isBusy ? '1px solid #fecaca' : '1px solid #f3f4f6' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#f9fafb', border: '2px solid #e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}> {user.avatar || '👤'} </div>
+                    <span style={{ position: 'absolute', bottom: '2px', right: '2px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: isBusy ? '#f59e0b' : (user.online ? '#22c55e' : '#9ca3af'), border: '2px solid #fff' }}></span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1f2937' }}>{user.username}</h3>
+                    <p style={{ margin: 0, fontSize: '12px', color: isBusy ? '#d97706' : (user.online ? '#16a34a' : '#9ca3af') }}> {isBusy ? 'مكالمة أخرى' : (user.online ? 'متصل' : 'غير متصل')} </p>
                   </div>
                 </div>
+                <button onClick={() => onCall(user)} disabled={!user.online} style={{ width: '40px', height: '40px', borderRadius: '50%', border: 'none', backgroundColor: isBusy ? '#ffedd5' : (user.online ? '#10b981' : '#e5e7eb'), color: isBusy ? '#ea580c' : '#fff', fontSize: '18px', cursor: user.online ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}> {isBusy ? '🔔' : '📞'} </button>
               </div>
-
-              <button
-                onClick={() => onCall(user)}
-                // نسمح بالاتصال حتى لو مشغول (ليظهر له الإشعار) لكن نمنع اذا غير متصل
-                disabled={!user.online} 
-                style={{
-                  padding: '10px 20px',
-                  background: user.online ? (user.isBusy ? '#f59e0b' : '#10b981') : '#e2e8f0',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  cursor: user.online ? 'pointer' : 'not-allowed',
-                  fontWeight: '700',
-                  fontSize: '14px',
-                  transition: 'all 0.2s',
-                  boxShadow: user.online ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
-                }}
-              >
-                {user.online ? (user.isBusy ? '🔔 تنبيه' : '📞 اتصال') : 'غائب'}
-              </button>
-            </div>
-          ))
+            );
+          })
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px', opacity: 0.6 }}>لا يوجد مستخدمين</div>
         )}
       </div>
     </div>
-  )
+  );
 }

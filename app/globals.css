@@ -26,6 +26,9 @@ body {
   color: var(--text-main);
   direction: rtl;
   overflow-x: hidden;
+  /* تحسين السكرول للمتصفح بالكامل */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
 /* ----------------------------------------- */
@@ -114,14 +117,14 @@ body {
   transform: none;
 }
 
-/* 🔥 تحديث: زر الخروج/الحذف (الأحمر) ليطابق الزر الأزرق تماماً */
+/* زر الخروج/الحذف (الأحمر) */
 .btn-danger {
-  width: 100%; /* ليأخذ العرض الكامل */
-  padding: 16px; /* نفس حشوة الزر الأزرق */
+  width: 100%;
+  padding: 16px;
   background: linear-gradient(135deg, var(--danger), var(--danger-hover));
   color: white;
   border: none;
-  border-radius: 16px; /* نفس الانحناء */
+  border-radius: 16px;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
@@ -189,4 +192,73 @@ body {
   animation: slideDown 0.5s ease-out;
   min-width: 300px;
   justify-content: center;
+}
+
+/* ====================================================== */
+/* 🎨 تعديلات ZegoCloud الإجبارية (لإصلاح شكل الهاتف) 🎨 */
+/* ====================================================== */
+
+/* إخفاء العناصر المزعجة */
+.zego_toast { display: none !important; }
+.ZegoRoomMessage { display: none !important; }
+
+/* 1. إصلاح خلفية وأبعاد شاشة الاتصال */
+.ZegoUIKitPrebuilt-Call-Invitation-Page {
+    background: #0f172a !important; /* لون كحلي ليلي فخم */
+    background-image: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
+    height: 100vh !important;
+    height: 100dvh !important; /* ملء الشاشة وتجاهل شريط العنوان */
+    width: 100vw !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 2147483647 !important; /* فوق كل شيء */
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+/* 2. تكبير وتنسيق اسم المتصل */
+.ZegoUIKitPrebuilt-Call-Invitation-Page .invitee-name {
+    font-size: 32px !important;
+    font-weight: 900 !important;
+    color: #ffffff !important;
+    font-family: 'Cairo', sans-serif !important;
+    margin-top: 20px !important;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+}
+
+/* 3. تنسيق نص الحالة (Incoming call) */
+.ZegoUIKitPrebuilt-Call-Invitation-Page .call-state-text {
+    color: #94a3b8 !important; /* لون رمادي فاتح */
+    font-size: 16px !important;
+    font-family: 'Cairo', sans-serif !important;
+    margin-top: 8px !important;
+    font-weight: 600 !important;
+}
+
+/* 4. إصلاح أزرار الرد والرفض (التباعد والتمركز) */
+.ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container {
+    display: flex !important;
+    justify-content: space-between !important; /* تباعد بين الأزرار */
+    align-items: center !important;
+    width: 80% !important; /* عرض مناسب للشاشة */
+    max-width: 350px !important;
+    position: absolute !important;
+    bottom: 15% !important; /* رفع الأزرار بنسبة مئوية */
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    padding: 0 20px !important;
+}
+
+/* 5. تكبير الأزرار نفسها */
+.ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container > div {
+    transform: scale(1.4) !important; /* تكبير 40% */
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+/* تأثير عند الضغط على الأزرار */
+.ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container > div:active {
+    transform: scale(1.2) !important;
 }
