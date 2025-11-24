@@ -7,16 +7,11 @@ import { db } from '../../firebase/firebase'
 import { ref, update, onDisconnect, serverTimestamp, get, push, onChildAdded, remove } from 'firebase/database'
 import UserSearch from '../components/UserSearch'
 import Header from '../components/Header'
+import AIAssistant from '../components/AIAssistant'
 
-// ==========================================
-// ⚙️ إعدادات التطبيق
-// ==========================================
 const APP_ID = 221724333;
 const SERVER_SECRET = "480e962860b99d4828e308ff7f340cf8";
-
-// الرابط الرسمي
 const PUBLIC_DOMAIN = "https://face2-three.vercel.app"; 
-
 const CALL_LIMIT_MS = 60 * 60 * 1000;
 const WARNING_COUNTDOWN_SEC = 15;
 
@@ -43,199 +38,166 @@ export default function CallClient() {
   const [darkMode, setDarkMode] = useState(false);
   const [showTimeoutModal, setShowTimeoutModal] = useState(false);
   const [autoEndCountdown, setAutoEndCountdown] = useState(WARNING_COUNTDOWN_SEC);
-
-  // 🟢 حالة جديدة: لتخزين بيانات الشخص الذي دعاك عبر الرابط
   const [invitedUser, setInvitedUser] = useState<any>(null);
+  
+  // ❤️ حالة القلوب الطائرة
+  const [hearts, setHearts] = useState<{ id: number, icon: string }[]>([]);
 
   const searchParams = useSearchParams();
   const targetIdFromLink = searchParams.get('target');
-
   const callLimitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const callStartTimeRef = useRef<number | null>(null);
   const currentPeerNameRef = useRef<string>("");
   const currentPeerAvatarRef = useRef<string>("👤");
   const currentRoomIdRef = useRef<string>("");
-
   const router = useRouter();
   const zegoInstanceRef = useRef<ZegoUIKitPrebuilt | null>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
-  // دالة الاهتزاز
-  const startVibration = () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200]); 
+  // --- 🔓 فك حظر الصوت ---
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (typeof window !== 'undefined') {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        if (!audioContextRef.current && AudioContext) audioContextRef.current = new AudioContext();
+        if (audioContextRef.current && audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
+      }
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+    return () => { document.removeEventListener('click', unlockAudio); document.removeEventListener('touchstart', unlockAudio); };
+  }, []);
+
+  const playAlertSound = () => {
+    if (!audioContextRef.current && typeof window !== 'undefined') {
+        const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AudioContext();
+    }
+    if (audioContextRef.current) {
+        const ctx = audioContextRef.current;
+        if (ctx.state === 'suspended') ctx.resume();
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        const now = ctx.currentTime;
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+        osc.frequency.setValueAtTime(1000, now + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(500, now + 0.4);
+        gainNode.gain.setValueAtTime(0.6, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
     }
   };
 
-  const stopVibration = () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(0);
+  const startVibration = () => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200]); };
+  const stopVibration = () => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(0); };
+  const showToast = (message: string, type: 'error' | 'info' = 'info') => { setNotification({ message, type }); setTimeout(() => setNotification(null), 5000); };
+  const getUserAvatar = async (userId: string) => { try { const snapshot = await get(ref(db, `users/${userId}/avatar`)); if (snapshot.exists()) return snapshot.val(); return "👤"; } catch (error) { return "👤"; } };
+  const formatDuration = (ms: number) => { const totalSeconds = Math.floor(ms / 1000); const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0'); const s = (totalSeconds % 60).toString().padStart(2, '0'); return `${m}:${s}`; };
+  const addCallLog = (log: CallLog) => { setCallHistory(prev => { const exists = prev.some(item => item.id === log.id); if (exists) return prev; const updatedLogs = [log, ...prev]; localStorage.setItem('face2_history', JSON.stringify(updatedLogs)); return updatedLogs; }); };
+
+  // --- ❤️ دالة إطلاق القلوب ---
+  const triggerHeartAnimation = () => {
+    const id = Date.now();
+    setHearts(prev => [...prev, { id, icon: '❤️' }]);
+    setTimeout(() => {
+      setHearts(prev => prev.filter(h => h.id !== id));
+    }, 2000);
   };
 
-  // المشاركة
+  // --- ❤️ دالة إرسال القلب للطرف الآخر (تم التصحيح هنا) ---
+  const sendHeartReaction = () => {
+    triggerHeartAnimation(); // يظهر عندي
+    if (zegoInstanceRef.current) {
+        // ✅ التصحيح: استخدام sendInRoomCommand بدلاً من sendInRoomMessage
+        // واستخدام (as any) لتجاوز تدقيق TypeScript مؤقتاً إذا لم تكن الخاصية معرفة
+        (zegoInstanceRef.current as any).sendInRoomCommand("ACTION_HEART", []); 
+    }
+  };
+
+  const handleCallUser = async (targetUser: { id: string, username: string }) => {
+    if (!zegoInstanceRef.current) return showToast("⚠️ النظام غير جاهز...", 'info');
+    const targetId = targetUser.id.trim();
+    const targetName = targetUser.username || "مستخدم";
+    try {
+      const snapshot = await get(ref(db, `users/${targetId}`));
+      const userData = snapshot.val();
+      if (userData && userData.avatar) currentPeerAvatarRef.current = userData.avatar; else currentPeerAvatarRef.current = "👤";
+      if (userData && userData.isBusy) { 
+        push(ref(db, `notifications/${targetId}`), { callerName: username, callerId: myId, timestamp: serverTimestamp(), read: false, type: 'missed_call' }); 
+        showToast(`🔔 تم إرسال تنبيه لـ ${targetName}.`, 'info'); return; 
+      }
+      if (userData && userData.inMeeting) { showToast(`⚠️ ${targetName} في مكالمة فيديو أخرى حالياً.`, 'error'); return; }
+      showToast(`📞 جاري الاتصال بـ ${targetUser.username}...`, "info");
+      currentPeerNameRef.current = targetName;
+      zegoInstanceRef.current.sendCallInvitation({ callees: [{ userID: targetId, userName: targetName }], callType: ZegoUIKitPrebuilt.InvitationTypeVideoCall, timeout: 60 }).then((res) => { if (res.errorInvitees.length) showToast("📴 تعذر الاتصال.", 'error'); });
+    } catch (err) { console.error(err); showToast("❌ خطأ في الشبكة", 'error'); }
+  };
+
   const shareInviteSmart = async () => {
     if (!myId) return;
     const inviteLink = `${PUBLIC_DOMAIN}/call?target=${myId}`;
-    const title = "دعوة مكالمة Face2";
     const text = `مرحباً 👋\nأنا *${username}* وأدعوك لمكالمة فيديو آمنة وسريعة عبر تطبيق *Face2*.\n\n📞 رقم الاجتماع: ${myId}\n👇 اضغط هنا للرد مباشرة:\n${inviteLink}`;
-
-    if (navigator.share) {
-      try { await navigator.share({ title, text, url: inviteLink }); } catch (error) {}
-    } else {
-      try { await navigator.clipboard.writeText(text); showToast('✅ تم نسخ رابط الدعوة الرسمي!', 'info'); } catch (err) { showToast('❌ حدث خطأ.', 'error'); }
-    }
+    if (navigator.share) { try { await navigator.share({ title: "دعوة Face2", text, url: inviteLink }); } catch (error) {} } else { try { await navigator.clipboard.writeText(text); showToast('✅ تم نسخ رابط الدعوة!', 'info'); } catch (err) { showToast('❌ خطأ.', 'error'); } }
   };
 
-  const sendWhatsAppInvite = () => {
-    if (!myId) return;
-    const inviteLink = `${PUBLIC_DOMAIN}/call?target=${myId}`;
-    const message = `مرحباً 👋\nأنا *${username}* وأدعوك لمكالمة فيديو آمنة وسريعة عبر تطبيق *Face2*.\n\n📞 رقم الاجتماع: ${myId}\n👇 اضغط هنا للرد مباشرة:\n${inviteLink}`;
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  // 🟢🟢 التعديل الذكي: جلب بيانات المستخدم من الرابط تلقائياً 🟢🟢
   useEffect(() => {
     const fetchInvitedUser = async () => {
-        // نتأكد أن الرابط يحتوي على ID وأن هذا الـ ID ليس أنا
         if (targetIdFromLink && myId && targetIdFromLink !== myId) {
            try {
-             // جلب بيانات المستخدم من Firebase
              const snapshot = await get(ref(db, `users/${targetIdFromLink}`));
-             if (snapshot.exists()) {
-                 const userData = snapshot.val();
-                 // حفظ البيانات لإظهار نافذة الاتصال
-                 setInvitedUser(userData);
-             } else {
-                 showToast("⚠️ رابط الدعوة غير صحيح أو المستخدم غير موجود.", "error");
-             }
-           } catch (error) {
-             console.error("Error fetching invited user:", error);
-           }
+             if (snapshot.exists()) setInvitedUser(snapshot.val());
+             else showToast("⚠️ المستخدم غير موجود.", "error");
+           } catch (error) { console.error(error); }
         }
     };
-
-    // ننتظر حتى يتم تحميل الـ ID الخاص بي أولاً
-    if (myId) {
-        fetchInvitedUser();
-    }
+    if (myId) fetchInvitedUser();
   }, [targetIdFromLink, myId]);
 
+  const handleAcceptInvite = () => { if (invitedUser) { handleCallUser(invitedUser); setInvitedUser(null); router.replace('/call'); } };
 
-  // 🟢 دالة قبول الدعوة من الرابط
-  const handleAcceptInvite = () => {
-      if (invitedUser) {
-          handleCallUser(invitedUser); // بدء الاتصال فوراً
-          setInvitedUser(null); // إغلاق النافذة
-          // تنظيف الرابط من الـ URL لكي لا يظهر مرة أخرى عند التحديث
-          router.replace('/call'); 
-      }
-  };
-
-  // ... (باقي useEffects الخاصة بـ Zego والـ Auth كما هي تماماً بدون تغيير) ...
   useEffect(() => {
-    if (callStatus === 'CONNECTED') {
-      document.body.style.overflow = 'hidden'; document.body.style.position = 'fixed'; document.body.style.width = '100%';
-    } else {
-      document.body.style.overflow = ''; document.body.style.position = ''; document.body.style.width = '';
-    }
+    if (callStatus === 'CONNECTED') { document.body.style.overflow = 'hidden'; document.body.style.position = 'fixed'; document.body.style.width = '100%'; } 
+    else { document.body.style.overflow = ''; document.body.style.position = ''; document.body.style.width = ''; }
     return () => { document.body.style.overflow = ''; document.body.style.position = ''; };
   }, [callStatus]);
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('face2_theme');
-    if (savedTheme === 'dark') setDarkMode(true);
-  }, []);
-
-  const toggleDarkMode = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    localStorage.setItem('face2_theme', newMode ? 'dark' : 'light');
-  };
-
-  const showToast = (message: string, type: 'error' | 'info' = 'info') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 5000);
-  };
-
-  const getUserAvatar = async (userId: string) => {
-    try {
-      const snapshot = await get(ref(db, `users/${userId}/avatar`));
-      if (snapshot.exists()) return snapshot.val();
-      return "👤";
-    } catch (error) { return "👤"; }
-  };
-
-  const formatDuration = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-    const s = (totalSeconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
-
-  const addCallLog = (log: CallLog) => {
-    setCallHistory(prev => {
-      const exists = prev.some(item => item.id === log.id);
-      if (exists) return prev;
-      const updatedLogs = [log, ...prev];
-      localStorage.setItem('face2_history', JSON.stringify(updatedLogs));
-      return updatedLogs;
-    });
-  };
-
-  const clearHistory = () => {
-    if (window.confirm("🗑️ هل أنت متأكد من حذف السجل بالكامل؟")) {
-      setCallHistory([]);
-      localStorage.removeItem('face2_history');
-      showToast("✨ تم تنظيف السجل بنجاح", "info");
-    }
-  };
+  useEffect(() => { const savedTheme = localStorage.getItem('face2_theme'); if (savedTheme === 'dark') setDarkMode(true); }, []);
+  const toggleDarkMode = () => { const newMode = !darkMode; setDarkMode(newMode); localStorage.setItem('face2_theme', newMode ? 'dark' : 'light'); };
+  const clearHistory = () => { if (window.confirm("🗑️ هل أنت متأكد من حذف السجل بالكامل؟")) { setCallHistory([]); localStorage.removeItem('face2_history'); showToast("✨ تم التنظيف", "info"); } };
 
   const toggleDoNotDisturb = () => {
     const newStatus = !isDoNotDisturb;
     setIsDoNotDisturb(newStatus);
-    if (myId) {
-      update(ref(db, `users/${myId}`), { isBusy: newStatus });
-      showToast(newStatus ? "⛔ تم تفعيل وضع عدم الإزعاج" : "✅ أنت متاح لاستقبال المكالمات", newStatus ? 'error' : 'info');
-    }
+    if (myId) { update(ref(db, `users/${myId}`), { isBusy: newStatus }); showToast(newStatus ? "⛔ تم تفعيل وضع عدم الإزعاج" : "✅ أنت متاح الآن", newStatus ? 'error' : 'info'); }
   };
 
   const forceEndCall = () => {
-    stopVibration(); 
-    setCallStatus('IDLE');
+    stopVibration(); setCallStatus('IDLE');
     if (myId) update(ref(db, `users/${myId}`), { inMeeting: false });
     if(videoContainerRef.current) videoContainerRef.current.innerHTML = ''; 
     if (zegoInstanceRef.current) { try { zegoInstanceRef.current.hangUp(); } catch(e){} }
     setTimeout(() => { window.location.href = '/call'; }, 300); 
   };
 
-  useEffect(() => {
-    if (callStatus === 'CONNECTED') { startInactivityTimer(); } else { clearTimers(); }
-    return () => clearTimers();
-  }, [callStatus]);
-
-  const startInactivityTimer = () => {
-    if (callLimitTimerRef.current) clearTimeout(callLimitTimerRef.current);
-    callLimitTimerRef.current = setTimeout(() => { setShowTimeoutModal(true); startCountdown(); }, CALL_LIMIT_MS);
-  };
-
-  const startCountdown = () => {
-    setAutoEndCountdown(WARNING_COUNTDOWN_SEC);
-    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    countdownIntervalRef.current = setInterval(() => {
-      setAutoEndCountdown((prev) => { if (prev <= 1) { handleAutoHangup(); return 0; } return prev - 1; });
-    }, 1000);
-  };
-
+  useEffect(() => { if (callStatus === 'CONNECTED') { startInactivityTimer(); } else { clearTimers(); } return () => clearTimers(); }, [callStatus]);
+  const startInactivityTimer = () => { if (callLimitTimerRef.current) clearTimeout(callLimitTimerRef.current); callLimitTimerRef.current = setTimeout(() => { setShowTimeoutModal(true); startCountdown(); }, CALL_LIMIT_MS); };
+  const startCountdown = () => { setAutoEndCountdown(WARNING_COUNTDOWN_SEC); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = setInterval(() => { setAutoEndCountdown((prev) => { if (prev <= 1) { handleAutoHangup(); return 0; } return prev - 1; }); }, 1000); };
   const handleAutoHangup = () => { clearTimers(); setShowTimeoutModal(false); forceEndCall(); };
-  const handleContinueCall = () => { setShowTimeoutModal(false); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); startInactivityTimer(); showToast("✅ تم تمديد المكالمة، استمتع!", "info"); };
+  const handleContinueCall = () => { setShowTimeoutModal(false); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); startInactivityTimer(); showToast("✅ تم تمديد المكالمة", "info"); };
   const clearTimers = () => { if (callLimitTimerRef.current) clearTimeout(callLimitTimerRef.current); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); setShowTimeoutModal(false); };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const storedId = localStorage.getItem('face2_userId');
-      const storedUsername = localStorage.getItem('face2_username');
-      const storedHistory = localStorage.getItem('face2_history');
+      const storedId = localStorage.getItem('face2_userId'); const storedUsername = localStorage.getItem('face2_username'); const storedHistory = localStorage.getItem('face2_history');
       if (storedHistory) { try { setCallHistory(JSON.parse(storedHistory)); } catch (e) { } }
       if (!storedId || !storedUsername) { router.push('/setup'); } else {
         setMyId(storedId); setUsername(storedUsername);
@@ -248,9 +210,10 @@ export default function CallClient() {
           if (data && !data.read) {
             update(ref(db, `notifications/${storedId}/${snapshot.key}`), { read: true });
             let callerAvatar = "👤"; if (data.callerId) callerAvatar = await getUserAvatar(data.callerId);
-            if (data.type === 'missed_call') {
-              addCallLog({ id: `missed_${Date.now()}`, name: data.callerName, avatar: callerAvatar, status: 'blocked', time: new Date(data.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'incoming' });
-              showToast(`⛔ ${data.callerName} حاول الاتصال بك وأنت مشغول.`, 'info');
+            if (data.type === 'missed_call') { 
+              playAlertSound();
+              addCallLog({ id: `missed_${Date.now()}`, name: data.callerName, avatar: callerAvatar, status: 'blocked', time: new Date(data.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'incoming' }); 
+              showToast(`🔔 تنبيه: ${data.callerName} ينبهك!`, 'info'); 
             } else { showToast(`🔔 إشعار: ${data.callerName} حاول الاتصال بك.`, 'info'); }
           }
         });
@@ -284,19 +247,29 @@ export default function CallClient() {
               videoResolutionDefault: ZegoUIKitPrebuilt.VideoResolution_180P,
               showScreenSharingButton: false, maxMemberCount: 2, showPreJoinView: false,
               turnOnMicrophoneWhenJoining: true, turnOnCameraWhenJoining: true, showMyCameraToggleButton: true, showMyMicrophoneToggleButton: true, showAudioVideoSettingsButton: true,
+              // 👇✅ التصحيح هنا: استخدام onInRoomCommandReceived 👇
+              onInRoomCommandReceived: (fromUser: any, command: string) => {
+                if (command === "ACTION_HEART") {
+                    triggerHeartAnimation(); // إظهار القلب عندي لما يرسله هو
+                }
+              },
               onUserLeave: (users) => { showToast(`📴 الطرف الآخر أنهى المكالمة`, 'info'); forceEndCall(); },
               onLeaveRoom: () => { forceEndCall(); }
             };
           },
           onIncomingCallReceived: (callID, caller) => {
-            if (isDoNotDisturb && zegoInstanceRef.current) { zegoInstanceRef.current.hangUp(); return; }
+            if (isDoNotDisturb && zegoInstanceRef.current) {
+              playAlertSound(); 
+              zegoInstanceRef.current.hangUp(); 
+              return; 
+            }
             startVibration(); currentRoomIdRef.current = callID; currentPeerNameRef.current = caller.userName || "مجهول";
             getUserAvatar(caller.userID).then(avatar => { currentPeerAvatarRef.current = avatar; });
           },
           onIncomingCallCanceled: () => { stopVibration(); setCallStatus('IDLE'); if (myId) update(ref(db, `users/${myId}`), { inMeeting: false }); },
           onOutgoingCallAccepted: (callID) => { setCallStatus('CONNECTED'); currentRoomIdRef.current = callID; },
           onOutgoingCallDeclined: (callID, callee) => {
-            showToast(`❌ للأسف، رفض ${callee.userName} المكالمة.`, 'error'); setCallStatus('IDLE');
+            showToast(`❌ رفض ${callee.userName} المكالمة.`, 'error'); setCallStatus('IDLE');
             if (myId) update(ref(db, `users/${myId}`), { inMeeting: false });
             addCallLog({ id: `rejected_${Date.now()}`, name: callee.userName || "مستخدم", avatar: currentPeerAvatarRef.current, status: 'rejected', time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'outgoing' });
           },
@@ -317,23 +290,6 @@ export default function CallClient() {
     return () => { stopVibration(); if (zegoInstanceRef.current) { zegoInstanceRef.current.destroy(); zegoInstanceRef.current = null; } };
   }, [myId, username, isDoNotDisturb]);
 
-  const handleCallUser = async (targetUser: { id: string, username: string }) => {
-    if (!zegoInstanceRef.current) return showToast("⚠️ النظام غير جاهز، انتظر لحظة...", 'info');
-    showToast(`...`, "info");
-    const targetId = targetUser.id.trim();
-    const targetName = targetUser.username || "مستخدم";
-    try {
-      const snapshot = await get(ref(db, `users/${targetId}`));
-      const userData = snapshot.val();
-      if (userData && userData.avatar) currentPeerAvatarRef.current = userData.avatar; else currentPeerAvatarRef.current = "👤";
-      if (userData && userData.isBusy) { push(ref(db, `notifications/${targetId}`), { callerName: username, callerId: myId, timestamp: serverTimestamp(), read: false, type: 'missed_call' }); showToast(`🔕 ${targetName} في وضع "عدم الإزعاج".`, 'info'); return; }
-      if (userData && userData.inMeeting) { showToast(`⚠️ ${targetName} في مكالمة فيديو أخرى حالياً.`, 'error'); return; }
-      showToast(`📞 جاري الاتصال بـ ${targetUser.username}...`, "info");
-      currentPeerNameRef.current = targetName;
-      zegoInstanceRef.current.sendCallInvitation({ callees: [{ userID: targetId, userName: targetName }], callType: ZegoUIKitPrebuilt.InvitationTypeVideoCall, timeout: 60 }).then((res) => { if (res.errorInvitees.length) showToast("📴 تعذر الاتصال (المستخدم غير متصل).", 'error'); });
-    } catch (err) { console.error(err); showToast("❌ خطأ في الاتصال بالشبكة", 'error'); }
-  };
-
   const theme = { bg: darkMode ? '#0f172a' : '#f9fafb', card: darkMode ? '#1e293b' : '#ffffff', text: darkMode ? '#f1f5f9' : '#1f2937', subText: darkMode ? '#94a3b8' : '#6b7280', border: darkMode ? '#334155' : '#f3f4f6', accentText: darkMode ? '#818cf8' : '#4f46e5', modalBg: darkMode ? '#1e293b' : '#ffffff' };
 
   return (
@@ -351,7 +307,40 @@ export default function CallClient() {
            ::-webkit-scrollbar-thumb:hover { background: ${darkMode ? '#64748b' : '#a8a8a8'}; }
       `}</style>
 
-      {/* 🟢🟢 نافذة الدعوة الخاصة الجديدة (الميزة المطلوبة) 🟢🟢 */}
+      {/* ❤️ عرض القلوب هنا (تعمل فوق الفيديو) ❤️ */}
+      {hearts.map(heart => (
+        <div key={heart.id} className="floating-heart">
+          {heart.icon}
+        </div>
+      ))}
+
+      {/* 👇 زر إرسال القلوب (يظهر فقط وقت المكالمة) 👇 */}
+      {callStatus === 'CONNECTED' && (
+        <button 
+          onClick={sendHeartReaction}
+          style={{
+            position: 'fixed', 
+            bottom: '100px', // فوق أزرار التحكم قليلاً
+            right: '20px', 
+            zIndex: 2147483647, // فوق فيديو Zego
+            backgroundColor: 'rgba(255, 255, 255, 0.2)', // شفاف قليلاً
+            backdropFilter: 'blur(5px)',
+            border: '1px solid rgba(255, 255, 255, 0.3)',
+            borderRadius: '50%', 
+            width: '50px', 
+            height: '50px', 
+            fontSize: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+          }}
+        >
+          ❤️
+        </button>
+      )}
+
       {invitedUser && callStatus === 'IDLE' && (
         <div className="modal-overlay">
           <div className="card modal-content" style={{ backgroundColor: theme.modalBg, color: theme.text, padding: '30px' }}>
@@ -359,20 +348,14 @@ export default function CallClient() {
             <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '5px' }}>دعوة خاصة من</h2>
             <h1 style={{ fontSize: '28px', fontWeight: '900', color: theme.accentText, marginBottom: '20px' }}>{invitedUser.username}</h1>
             <p style={{ color: theme.subText, marginBottom: '25px' }}>يريد إجراء مكالمة فيديو معك الآن 🎥</p>
-            
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <button onClick={handleAcceptInvite} className="btn" style={{ backgroundColor: '#10b981', fontSize: '18px', padding: '14px' }}>
-                   📞 اتصال الآن
-                </button>
-                <button onClick={() => setInvitedUser(null)} className="btn-danger" style={{ backgroundColor: 'transparent', color: theme.subText, border: `1px solid ${theme.border}`, boxShadow: 'none' }}>
-                   تجاهل
-                </button>
+                <button onClick={handleAcceptInvite} className="btn" style={{ backgroundColor: '#10b981', fontSize: '18px', padding: '14px' }}>📞 اتصال الآن</button>
+                <button onClick={() => setInvitedUser(null)} className="btn-danger" style={{ backgroundColor: 'transparent', color: theme.subText, border: `1px solid ${theme.border}`, boxShadow: 'none' }}>تجاهل</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* باقي النوافذ كما هي... */}
       {showTimeoutModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999999, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="card" style={{ width: '300px', textAlign: 'center', background: theme.modalBg, padding: '20px', color: theme.text }}>
@@ -386,7 +369,7 @@ export default function CallClient() {
       {notification && ( <div className="toast-notification" style={{ background: notification.type === 'error' ? '#fee2e2' : '#e0e7ff', color: notification.type === 'error' ? '#991b1b' : '#3730a3' }}> {notification.message} </div> )}
 
       {callStatus === 'IDLE' && (
-        <div className="sudan-flag" onClick={() => setShowAboutModal(true)} style={{ position: 'absolute', top: '15px', left: '15px', zIndex: 9999, width: '45px', height: '30px', borderRadius: '5px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', cursor: 'pointer', transition: 'transform 0.2s' }} title="عن المطور 🇸🇩">
+        <div className="sudan-flag flag-animation" onClick={() => setShowAboutModal(true)} style={{ position: 'absolute', top: '15px', left: '15px', zIndex: 9999, width: '45px', height: '30px', borderRadius: '5px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', cursor: 'pointer' }} title="عن المطور 🇸🇩">
              <div style={{ height: '33.3%', background: '#DE0000' }}></div>
              <div style={{ height: '33.3%', background: '#FFFFFF' }}></div>
              <div style={{ height: '33.3%', background: '#000000' }}></div>
@@ -400,11 +383,8 @@ export default function CallClient() {
             <div className="flex justify-between items-center w-full">
               <Header />
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <button onClick={shareInviteSmart} style={{ backgroundColor: '#4f46e5', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(79, 70, 229, 0.3)' }} title="دعوة صديق (مشاركة)">
+                <button onClick={shareInviteSmart} style={{ backgroundColor: '#4f46e5', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(79, 70, 229, 0.3)' }} title="دعوة صديق">
                   <span style={{ fontSize: '22px', color: '#fff' }}>🔗</span>
-                </button>
-                <button onClick={sendWhatsAppInvite} style={{ backgroundColor: '#25D366', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(37, 211, 102, 0.3)' }} title="دعوة صديق عبر واتساب">
-                  <span style={{ fontSize: '22px' }}>💬</span>
                 </button>
                 <button onClick={handleLogout} className="btn-danger" style={{ padding: '6px 16px', borderRadius: '20px', fontSize: '12px', width: 'auto' }}>خروج 👋</button>
               </div>
@@ -428,6 +408,7 @@ export default function CallClient() {
           <button onClick={() => setShowHistoryModal(true)} style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 1000, background: theme.card, padding: '12px 24px', borderRadius: '50px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)', fontWeight: 'bold', fontSize: '14px', color: theme.text, border: `1px solid ${theme.border}`, display:'flex', alignItems:'center', gap:'8px' }}>🕒 السجل</button>
         </>
       )}
+      
       {showHistoryModal && (
         <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
           <div className="card modal-content" onClick={(e) => e.stopPropagation()} style={{ backgroundColor: theme.modalBg, color: theme.text }}>
@@ -450,7 +431,7 @@ export default function CallClient() {
       {showAboutModal && (
         <div className="modal-overlay" onClick={() => setShowAboutModal(false)}>
           <div className="card modal-content" onClick={(e) => e.stopPropagation()} style={{ backgroundColor: theme.modalBg, color: theme.text }}>
-            <div style={{ fontSize: '60px', marginBottom: '10px', animation: 'pop 0.5s' }}>🇸🇩</div>
+            <div className="flag-animation" style={{ fontSize: '60px', marginBottom: '10px' }}>🇸🇩</div>
             <h2 style={{ fontWeight: '800', color: theme.text, marginBottom: '5px' }}>Face2</h2>
             <p style={{ color: '#10b981', fontWeight: '700', marginBottom: '20px', fontSize: '14px' }}>أول تطبيق اتصال سوداني آمن 🔒</p>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: darkMode ? '#334155' : '#f3f4f6', padding: '10px 15px', borderRadius: '12px', marginBottom: '15px' }}> <span style={{ fontWeight: 'bold', fontSize: '14px', color: theme.text }}>المظهر:</span> <button onClick={toggleDarkMode} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px' }}> {darkMode ? '☀️ نهاري' : '🌙 ليلي'} </button> </div>
@@ -459,6 +440,8 @@ export default function CallClient() {
           </div>
         </div>
       )}
+
+      {callStatus === 'IDLE' && <AIAssistant />}
 
       <div ref={videoContainerRef} className="video-container-custom" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100dvh', zIndex: 10, backgroundColor: '#000', display: callStatus === 'CONNECTED' ? 'block' : 'none', }} />
     </div>

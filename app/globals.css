@@ -262,3 +262,38 @@ body {
 .ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container > div:active {
     transform: scale(1.2) !important;
 }
+
+/* ... (أكوادك القديمة) ... */
+
+/* 🏳️ أنميشن رفرفة العلم */
+@keyframes waveFlag {
+  0% { transform: rotate(0deg) skewY(0deg); }
+  25% { transform: rotate(5deg) skewY(2deg); }
+  50% { transform: rotate(0deg) skewY(0deg); }
+  75% { transform: rotate(-5deg) skewY(-2deg); }
+  100% { transform: rotate(0deg) skewY(0deg); }
+}
+
+.flag-animation {
+  animation: waveFlag 3s infinite ease-in-out;
+  transform-origin: bottom left; /* نقطة الارتكاز كأنه مثبت في سارية */
+}
+
+/* ... (أكوادك السابقة) ... */
+
+/* ❤️ أنميشن القلوب الطائرة */
+@keyframes floatUp {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-200px) scale(1.5); opacity: 0; }
+}
+
+.floating-heart {
+  position: absolute;
+  bottom: 100px; /* تبدأ من فوق الأزرار */
+  right: 30px;   /* تظهر على الجانب */
+  font-size: 30px;
+  pointer-events: none; /* عشان ما تمنع اللمس */
+  animation: floatUp 2s ease-out forwards;
+  z-index: 2147483647; /* تظهر فوق كل شيء */
+}
