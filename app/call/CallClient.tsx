@@ -8,6 +8,7 @@ import { ref, update, onDisconnect, serverTimestamp, get, push, onChildAdded, re
 import UserSearch from '../components/UserSearch'
 import Header from '../components/Header'
 import AIAssistant from '../components/AIAssistant'
+import QRCode from 'react-qr-code' // 📦 استيراد مكتبة QR
 
 const APP_ID = 221724333;
 const SERVER_SECRET = "480e962860b99d4828e308ff7f340cf8";
@@ -40,7 +41,10 @@ export default function CallClient() {
   const [autoEndCountdown, setAutoEndCountdown] = useState(WARNING_COUNTDOWN_SEC);
   const [invitedUser, setInvitedUser] = useState<any>(null);
   
-  // ❤️ حالة القلوب الطائرة
+  // 🆕 حالة ظهور خيارات المشاركة والـ QR
+  const [showShareOptions, setShowShareOptions] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+
   const [hearts, setHearts] = useState<{ id: number, icon: string }[]>([]);
 
   const searchParams = useSearchParams();
@@ -56,7 +60,6 @@ export default function CallClient() {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // --- 🔓 فك حظر الصوت ---
   useEffect(() => {
     const unlockAudio = () => {
       if (typeof window !== 'undefined') {
@@ -104,49 +107,68 @@ export default function CallClient() {
   const formatDuration = (ms: number) => { const totalSeconds = Math.floor(ms / 1000); const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0'); const s = (totalSeconds % 60).toString().padStart(2, '0'); return `${m}:${s}`; };
   const addCallLog = (log: CallLog) => { setCallHistory(prev => { const exists = prev.some(item => item.id === log.id); if (exists) return prev; const updatedLogs = [log, ...prev]; localStorage.setItem('face2_history', JSON.stringify(updatedLogs)); return updatedLogs; }); };
 
-  // --- ❤️ دالة إطلاق القلوب ---
   const triggerHeartAnimation = () => {
     const id = Date.now();
     setHearts(prev => [...prev, { id, icon: '❤️' }]);
-    setTimeout(() => {
-      setHearts(prev => prev.filter(h => h.id !== id));
-    }, 2000);
+    setTimeout(() => { setHearts(prev => prev.filter(h => h.id !== id)); }, 2000);
   };
 
-  // --- ❤️ دالة إرسال القلب للطرف الآخر (تم التصحيح هنا) ---
   const sendHeartReaction = () => {
-    triggerHeartAnimation(); // يظهر عندي
-    if (zegoInstanceRef.current) {
-        // ✅ التصحيح: استخدام sendInRoomCommand بدلاً من sendInRoomMessage
-        // واستخدام (as any) لتجاوز تدقيق TypeScript مؤقتاً إذا لم تكن الخاصية معرفة
-        (zegoInstanceRef.current as any).sendInRoomCommand("ACTION_HEART", []); 
-    }
+    triggerHeartAnimation(); 
+    if (zegoInstanceRef.current) { (zegoInstanceRef.current as any).sendInRoomCommand("ACTION_HEART", []); }
   };
 
+  // --- 🔥 دالة الاتصال (مع فحص الحظر) 🔥 ---
   const handleCallUser = async (targetUser: { id: string, username: string }) => {
     if (!zegoInstanceRef.current) return showToast("⚠️ النظام غير جاهز...", 'info');
+    
     const targetId = targetUser.id.trim();
     const targetName = targetUser.username || "مستخدم";
+
     try {
+      // 🛑 1. فحص الحظر (هل هو قام بحظري؟)
+      // المسار: blocked/{targetId}/{myId}
+      const blockedSnapshot = await get(ref(db, `blocked/${targetId}/${myId}`));
+      if (blockedSnapshot.exists()) {
+          // 🚨 نعم، هو قام بحظري
+          showToast(`⛔ عذراً، لا يمكنك الاتصال بـ ${targetName} (قام بحظرك).`, 'error');
+          return;
+      }
+
       const snapshot = await get(ref(db, `users/${targetId}`));
       const userData = snapshot.val();
       if (userData && userData.avatar) currentPeerAvatarRef.current = userData.avatar; else currentPeerAvatarRef.current = "👤";
+      
       if (userData && userData.isBusy) { 
         push(ref(db, `notifications/${targetId}`), { callerName: username, callerId: myId, timestamp: serverTimestamp(), read: false, type: 'missed_call' }); 
         showToast(`🔔 تم إرسال تنبيه لـ ${targetName}.`, 'info'); return; 
       }
       if (userData && userData.inMeeting) { showToast(`⚠️ ${targetName} في مكالمة فيديو أخرى حالياً.`, 'error'); return; }
+      
       showToast(`📞 جاري الاتصال بـ ${targetUser.username}...`, "info");
       currentPeerNameRef.current = targetName;
       zegoInstanceRef.current.sendCallInvitation({ callees: [{ userID: targetId, userName: targetName }], callType: ZegoUIKitPrebuilt.InvitationTypeVideoCall, timeout: 60 }).then((res) => { if (res.errorInvitees.length) showToast("📴 تعذر الاتصال.", 'error'); });
     } catch (err) { console.error(err); showToast("❌ خطأ في الشبكة", 'error'); }
   };
 
-  const shareInviteSmart = async () => {
+  // --- 🆕 دالة المشاركة (تفتح القائمة) ---
+  const openShareOptions = () => {
+    setShowShareOptions(true);
+  };
+
+  // 1. نسخ الرابط
+  const copyLink = async () => {
     if (!myId) return;
     const inviteLink = `${PUBLIC_DOMAIN}/call?target=${myId}`;
     const text = `مرحباً 👋\nأنا *${username}* وأدعوك لمكالمة فيديو آمنة وسريعة عبر تطبيق *Face2*.\n\n📞 رقم الاجتماع: ${myId}\n👇 اضغط هنا للرد مباشرة:\n${inviteLink}`;
     if (navigator.share) { try { await navigator.share({ title: "دعوة Face2", text, url: inviteLink }); } catch (error) {} } else { try { await navigator.clipboard.writeText(text); showToast('✅ تم نسخ رابط الدعوة!', 'info'); } catch (err) { showToast('❌ خطأ.', 'error'); } }
+    setShowShareOptions(false);
+  };
+
+  // 2. فتح QR
+  const openQR = () => {
+    setShowShareOptions(false);
+    setShowQRModal(true);
   };
 
   useEffect(() => {
@@ -247,10 +269,9 @@ export default function CallClient() {
               videoResolutionDefault: ZegoUIKitPrebuilt.VideoResolution_180P,
               showScreenSharingButton: false, maxMemberCount: 2, showPreJoinView: false,
               turnOnMicrophoneWhenJoining: true, turnOnCameraWhenJoining: true, showMyCameraToggleButton: true, showMyMicrophoneToggleButton: true, showAudioVideoSettingsButton: true,
-              // 👇✅ التصحيح هنا: استخدام onInRoomCommandReceived 👇
               onInRoomCommandReceived: (fromUser: any, command: string) => {
                 if (command === "ACTION_HEART") {
-                    triggerHeartAnimation(); // إظهار القلب عندي لما يرسله هو
+                    triggerHeartAnimation(); 
                 }
               },
               onUserLeave: (users) => { showToast(`📴 الطرف الآخر أنهى المكالمة`, 'info'); forceEndCall(); },
@@ -307,38 +328,37 @@ export default function CallClient() {
            ::-webkit-scrollbar-thumb:hover { background: ${darkMode ? '#64748b' : '#a8a8a8'}; }
       `}</style>
 
-      {/* ❤️ عرض القلوب هنا (تعمل فوق الفيديو) ❤️ */}
-      {hearts.map(heart => (
-        <div key={heart.id} className="floating-heart">
-          {heart.icon}
-        </div>
-      ))}
+      {hearts.map(heart => ( <div key={heart.id} className="floating-heart"> {heart.icon} </div> ))}
 
-      {/* 👇 زر إرسال القلوب (يظهر فقط وقت المكالمة) 👇 */}
       {callStatus === 'CONNECTED' && (
-        <button 
-          onClick={sendHeartReaction}
-          style={{
-            position: 'fixed', 
-            bottom: '100px', // فوق أزرار التحكم قليلاً
-            right: '20px', 
-            zIndex: 2147483647, // فوق فيديو Zego
-            backgroundColor: 'rgba(255, 255, 255, 0.2)', // شفاف قليلاً
-            backdropFilter: 'blur(5px)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            borderRadius: '50%', 
-            width: '50px', 
-            height: '50px', 
-            fontSize: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-          }}
-        >
-          ❤️
-        </button>
+        <button onClick={sendHeartReaction} style={{ position: 'fixed', bottom: '100px', right: '20px', zIndex: 2147483647, backgroundColor: 'rgba(255, 255, 255, 0.2)', backdropFilter: 'blur(5px)', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '50%', width: '50px', height: '50px', fontSize: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.3)' }}> ❤️ </button>
+      )}
+
+      {/* 👇👇👇 نافذة خيارات المشاركة (رابط أو QR) 👇👇👇 */}
+      {showShareOptions && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowShareOptions(false)}>
+            <div style={{ backgroundColor: theme.card, padding: '25px', borderRadius: '20px', width: '320px', textAlign: 'center', border: `1px solid ${theme.border}` }} onClick={e => e.stopPropagation()}>
+                <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: '800', color: theme.text }}>دعوة صديق 🤝</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <button onClick={copyLink} className="btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}> 🔗 نسخ الرابط </button>
+                    <button onClick={openQR} className="btn" style={{ backgroundColor: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}> 📱 عرض كود QR </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* 👇👇👇 نافذة QR Code 👇👇👇 */}
+      {showQRModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowQRModal(false)}>
+            <div style={{ backgroundColor: '#fff', padding: '30px', borderRadius: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                <h3 style={{ marginBottom: '20px', color: '#000', fontWeight: '800' }}>امسح الكود للاتصال 📸</h3>
+                <div style={{ background: 'white', padding: '10px', borderRadius: '10px' }}>
+                    <QRCode value={`${PUBLIC_DOMAIN}/call?target=${myId}`} size={200} />
+                </div>
+                <p style={{ marginTop: '15px', color: '#666', fontSize: '14px' }}>Face2 ID: {username}</p>
+                <button onClick={() => setShowQRModal(false)} style={{ marginTop: '20px', padding: '10px 30px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '20px', fontWeight: 'bold' }}>إغلاق</button>
+            </div>
+        </div>
       )}
 
       {invitedUser && callStatus === 'IDLE' && (
@@ -383,7 +403,8 @@ export default function CallClient() {
             <div className="flex justify-between items-center w-full">
               <Header />
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <button onClick={shareInviteSmart} style={{ backgroundColor: '#4f46e5', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(79, 70, 229, 0.3)' }} title="دعوة صديق">
+                {/* 👇👇 تعديل الزر لفتح قائمة الخيارات 👇👇 */}
+                <button onClick={openShareOptions} style={{ backgroundColor: '#4f46e5', border: 'none', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(79, 70, 229, 0.3)' }} title="دعوة صديق">
                   <span style={{ fontSize: '22px', color: '#fff' }}>🔗</span>
                 </button>
                 <button onClick={handleLogout} className="btn-danger" style={{ padding: '6px 16px', borderRadius: '20px', fontSize: '12px', width: 'auto' }}>خروج 👋</button>
