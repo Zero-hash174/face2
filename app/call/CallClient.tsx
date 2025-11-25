@@ -10,8 +10,10 @@ import Header from '../components/Header'
 import AIAssistant from '../components/AIAssistant'
 import QRCode from 'react-qr-code'
 
-const APP_ID = 538404156;
-const SERVER_SECRET = "abb68cf361c5f3d0814737785193153a";
+// ⚙️ إعدادات ZegoCloud
+const APP_ID = 538404156; 
+const SERVER_SECRET = "abb68cf361c5f3d0814737785193153a"; 
+
 const PUBLIC_DOMAIN = "https://face2-three.vercel.app"; 
 const CALL_LIMIT_MS = 60 * 60 * 1000;
 const WARNING_COUNTDOWN_SEC = 15;
@@ -27,6 +29,7 @@ type CallLog = {
 };
 
 export default function CallClient() {
+  // State Management
   const [myId, setMyId] = useState<string>('');
   const [username, setUsername] = useState('');
   const [isZegoReady, setIsZegoReady] = useState(false);
@@ -41,6 +44,7 @@ export default function CallClient() {
   const [autoEndCountdown, setAutoEndCountdown] = useState(WARNING_COUNTDOWN_SEC);
   const [invitedUser, setInvitedUser] = useState<any>(null);
   
+  // تفاعلات ومشاركة
   const [hearts, setHearts] = useState<{ id: number, icon: string }[]>([]);
   const [showShareOptions, setShowShareOptions] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -48,6 +52,7 @@ export default function CallClient() {
   const searchParams = useSearchParams();
   const targetIdFromLink = searchParams.get('target');
   
+  // Refs
   const callLimitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const callStartTimeRef = useRef<number | null>(null);
@@ -60,7 +65,7 @@ export default function CallClient() {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // --- 🔓 فك حظر الصوت ---
+  // --- 🔓 1. فك حظر الصوت (Audio Unlock) ---
   useEffect(() => {
     const unlockAudio = () => {
       if (typeof window !== 'undefined') {
@@ -76,7 +81,7 @@ export default function CallClient() {
     return () => { document.removeEventListener('click', unlockAudio); document.removeEventListener('touchstart', unlockAudio); };
   }, []);
 
-  // --- 🔊 الصوت ---
+  // --- 🔊 2. تشغيل نغمة التنبيه ---
   const playAlertSound = () => {
     if (!audioContextRef.current && typeof window !== 'undefined') {
         const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -102,7 +107,7 @@ export default function CallClient() {
     }
   };
 
-  // --- Helpers ---
+  // --- 3. أدوات المساعدة ---
   const startVibration = () => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200]); };
   const stopVibration = () => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(0); };
   const showToast = (message: string, type: 'error' | 'info' = 'info') => { setNotification({ message, type }); setTimeout(() => setNotification(null), 5000); };
@@ -110,6 +115,23 @@ export default function CallClient() {
   const formatDuration = (ms: number) => { const totalSeconds = Math.floor(ms / 1000); const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0'); const s = (totalSeconds % 60).toString().padStart(2, '0'); return `${m}:${s}`; };
   const addCallLog = (log: CallLog) => { setCallHistory(prev => { const exists = prev.some(item => item.id === log.id); if (exists) return prev; const updatedLogs = [log, ...prev]; localStorage.setItem('face2_history', JSON.stringify(updatedLogs)); return updatedLogs; }); };
 
+  // --- 4. دوال التحكم (تم رفعها هنا لحل الخطأ) ---
+  const toggleDoNotDisturb = () => {
+    const newStatus = !isDoNotDisturb;
+    setIsDoNotDisturb(newStatus);
+    if (myId) { update(ref(db, `users/${myId}`), { isBusy: newStatus }); showToast(newStatus ? "⛔ تم تفعيل وضع عدم الإزعاج" : "✅ أنت متاح الآن", newStatus ? 'error' : 'info'); }
+  };
+
+  const forceEndCall = () => {
+    stopVibration(); setCallStatus('IDLE');
+    if (myId) update(ref(db, `users/${myId}`), { inMeeting: false });
+    if(videoContainerRef.current) videoContainerRef.current.innerHTML = ''; 
+    if (zegoInstanceRef.current) { try { zegoInstanceRef.current.hangUp(); } catch(e){} }
+    // إعادة توجيه بسيطة لتنظيف الواجهة
+    setTimeout(() => { window.location.href = '/call'; }, 300); 
+  };
+
+  // --- ❤️ 5. نظام القلوب ---
   const triggerHeartAnimation = () => {
     const id = Date.now();
     setHearts(prev => [...prev, { id, icon: '❤️' }]);
@@ -121,9 +143,9 @@ export default function CallClient() {
     if (zegoInstanceRef.current) { (zegoInstanceRef.current as any).sendInRoomCommand("ACTION_HEART", []); }
   };
 
-  // --- 🔥 دالة الاتصال 🔥 ---
+  // --- 🔥 6. دالة الاتصال 🔥 ---
   const handleCallUser = async (targetUser: { id: string, username: string }) => {
-    if (!zegoInstanceRef.current) return showToast("⚠️ النظام غير جاهز، حاول تحديث الصفحة...", 'info');
+    if (!zegoInstanceRef.current) return showToast("⚠️ النظام غير جاهز، انتظر لحظة...", 'info');
     const targetId = targetUser.id.trim();
     const targetName = targetUser.username || "مستخدم";
 
@@ -148,15 +170,16 @@ export default function CallClient() {
           callees: [{ userID: targetId, userName: targetName }], 
           callType: ZegoUIKitPrebuilt.InvitationTypeVideoCall, 
           timeout: 60 
-      }).catch(err => {
-          console.error("Zego Invitation Error:", err);
-          showToast("❌ فشل في إرسال الدعوة.", 'error');
-      });
+      })
+      .then((res) => { 
+          if (res.errorInvitees.length) { showToast("📴 المستخدم غير متصل أو حدث خطأ.", 'error'); }
+      })
+      .catch(err => { console.error("Zego Invitation Error:", err); showToast("❌ فشل في إرسال الدعوة.", 'error'); });
 
     } catch (err) { console.error(err); showToast("❌ خطأ في الشبكة", 'error'); }
   };
 
-  // --- المشاركة ---
+  // --- 7. خيارات المشاركة ---
   const openShareOptions = () => { setShowShareOptions(true); };
   const copyLink = async () => {
     if (!myId) return;
@@ -167,6 +190,7 @@ export default function CallClient() {
   };
   const openQR = () => { setShowShareOptions(false); setShowQRModal(true); };
 
+  // --- 8. معالجة الدعوة من الرابط ---
   useEffect(() => {
     const fetchInvitedUser = async () => {
         if (targetIdFromLink && myId && targetIdFromLink !== myId) {
@@ -182,30 +206,46 @@ export default function CallClient() {
 
   const handleAcceptInvite = () => { if (invitedUser) { handleCallUser(invitedUser); setInvitedUser(null); router.replace('/call'); } };
 
-  // --- ⚙️ التحقق والتهيئة (الحل الجذري) ⚙️ ---
+  // --- 9. زر الخروج الذكي ---
+  const handleLogout = async () => {
+    if (myId) {
+       await update(ref(db, `users/${myId}`), { online: false, inMeeting: false });
+    }
+    localStorage.removeItem('face2_username');
+    localStorage.removeItem('face2_avatar');
+    localStorage.removeItem('face2_history');
+    if (zegoInstanceRef.current) (zegoInstanceRef.current as any).destroy();
+    window.location.href = '/setup';
+  };
+
+  // --- ⚙️ 10. التحقق وتهيئة Zego ⚙️ ---
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedId = localStorage.getItem('face2_userId'); 
       const storedUsername = localStorage.getItem('face2_username'); 
+      const storedHistory = localStorage.getItem('face2_history');
+      
+      if (storedHistory) { try { setCallHistory(JSON.parse(storedHistory)); } catch (e) { } }
       
       if (!storedId || !storedUsername) { 
           router.push('/setup'); 
       } else {
-        // فحص وجود المستخدم في Firebase
+        console.log("🆔 [System] Using existing User ID:", storedId);
+
         get(ref(db, `users/${storedId}`)).then((snapshot) => {
             if (!snapshot.exists()) {
                 console.warn("User deleted. Logging out.");
-                handleLogout(); // خروج قسري
+                // هنا نقوم بمسح الـ ID أيضاً لأن المستخدم غير موجود في السيرفر
+                localStorage.removeItem('face2_userId');
+                handleLogout();
             } else {
                 setMyId(storedId); 
                 setUsername(storedUsername);
                 
-                // تحديث الحالة
                 const userRef = ref(db, `users/${storedId}`);
                 update(userRef, { online: true, isBusy: false, inMeeting: false, lastSeen: serverTimestamp() });
                 onDisconnect(userRef).update({ online: false, inMeeting: false, lastSeen: serverTimestamp() });
                 
-                // إشعارات Firebase
                 const notificationsRef = ref(db, `notifications/${storedId}`);
                 onChildAdded(notificationsRef, async (snapshot) => {
                   const data = snapshot.val();
@@ -225,23 +265,19 @@ export default function CallClient() {
     }
   }, [router]);
 
-  // --- تهيئة Zego ---
   useEffect(() => {
     if (myId && username) {
         const initZego = async () => {
-            // ✅ تنظيف النسخة السابقة دائماً قبل الإنشاء
             if (zegoInstanceRef.current) {
                 (zegoInstanceRef.current as any).destroy();
                 zegoInstanceRef.current = null;
             }
 
             try {
-                // 🔥 التغيير السحري: استخدام myId كمعرف للغرفة لضمان عدم التضارب
-                // هذا يضمن أن كل مستخدم لديه "جلسة" فريدة خاصة به
                 const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
                     APP_ID, 
                     SERVER_SECRET, 
-                    myId, // ⬅️ استخدام ID المستخدم كـ RoomID
+                    myId, 
                     myId, 
                     username
                 );
@@ -269,7 +305,11 @@ export default function CallClient() {
                     };
                   },
                   onIncomingCallReceived: (callID, caller) => {
-                    if (isDoNotDisturb) { playAlertSound(); if(zegoInstanceRef.current) zegoInstanceRef.current.hangUp(); return; }
+                    if (isDoNotDisturb) { 
+                        playAlertSound(); 
+                        if(zegoInstanceRef.current) zegoInstanceRef.current.hangUp(); 
+                        return; 
+                    }
                     startVibration(); currentRoomIdRef.current = callID; currentPeerNameRef.current = caller.userName || "مجهول";
                     getUserAvatar(caller.userID).then(avatar => { currentPeerAvatarRef.current = avatar; });
                   },
@@ -291,22 +331,21 @@ export default function CallClient() {
                   },
                 });
                 setIsZegoReady(true);
-                console.log("✅ Zego Initialized for user:", myId);
+                console.log("✅ Zego Initialized for:", myId);
               } catch (error) { console.error("Zego Init Error:", error); }
         };
         initZego();
     }
     
-    // تنظيف عند تغيير الـ ID
     return () => {
         if (zegoInstanceRef.current) {
             (zegoInstanceRef.current as any).destroy();
             zegoInstanceRef.current = null;
         }
     };
-  }, [myId, username]); // يعتمد على myId لضمان إعادة الإنشاء
+  }, [myId, username]);
 
-  // --- UI Effects ---
+  // --- UI Helpers ---
   useEffect(() => {
     if (callStatus === 'CONNECTED') { document.body.style.overflow = 'hidden'; document.body.style.position = 'fixed'; document.body.style.width = '100%'; } 
     else { document.body.style.overflow = ''; document.body.style.position = ''; document.body.style.width = ''; }
@@ -317,35 +356,13 @@ export default function CallClient() {
   const toggleDarkMode = () => { const newMode = !darkMode; setDarkMode(newMode); localStorage.setItem('face2_theme', newMode ? 'dark' : 'light'); };
   const clearHistory = () => { if (window.confirm("🗑️ هل أنت متأكد من حذف السجل بالكامل؟")) { setCallHistory([]); localStorage.removeItem('face2_history'); showToast("✨ تم التنظيف", "info"); } };
 
-  const toggleDoNotDisturb = () => {
-    const newStatus = !isDoNotDisturb;
-    setIsDoNotDisturb(newStatus);
-    if (myId) { update(ref(db, `users/${myId}`), { isBusy: newStatus }); showToast(newStatus ? "⛔ تم تفعيل وضع عدم الإزعاج" : "✅ أنت متاح الآن", newStatus ? 'error' : 'info'); }
-  };
-
-  const forceEndCall = () => {
-    stopVibration(); setCallStatus('IDLE');
-    if (myId) update(ref(db, `users/${myId}`), { inMeeting: false });
-    if(videoContainerRef.current) videoContainerRef.current.innerHTML = ''; 
-    if (zegoInstanceRef.current) { try { zegoInstanceRef.current.hangUp(); } catch(e){} }
-    setTimeout(() => { window.location.href = '/call'; }, 300); 
-  };
-
+  // --- المؤقتات ---
   useEffect(() => { if (callStatus === 'CONNECTED') { startInactivityTimer(); } else { clearTimers(); } return () => clearTimers(); }, [callStatus]);
   const startInactivityTimer = () => { if (callLimitTimerRef.current) clearTimeout(callLimitTimerRef.current); callLimitTimerRef.current = setTimeout(() => { setShowTimeoutModal(true); startCountdown(); }, CALL_LIMIT_MS); };
   const startCountdown = () => { setAutoEndCountdown(WARNING_COUNTDOWN_SEC); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = setInterval(() => { setAutoEndCountdown((prev) => { if (prev <= 1) { handleAutoHangup(); return 0; } return prev - 1; }); }, 1000); };
   const handleAutoHangup = () => { clearTimers(); setShowTimeoutModal(false); forceEndCall(); };
   const handleContinueCall = () => { setShowTimeoutModal(false); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); startInactivityTimer(); showToast("✅ تم تمديد المكالمة", "info"); };
   const clearTimers = () => { if (callLimitTimerRef.current) clearTimeout(callLimitTimerRef.current); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); setShowTimeoutModal(false); };
-
-  // --- 🔥 الخروج القسري (الحل النهائي) 🔥 ---
-  const handleLogout = () => {
-    if (myId) { remove(ref(db, `users/${myId}`)); }
-    localStorage.clear(); // مسح كل شيء
-    if (zegoInstanceRef.current) (zegoInstanceRef.current as any).destroy();
-    // إعادة تحميل الصفحة بالقوة لمسح الذاكرة
-    window.location.href = '/setup'; 
-  };
 
   const theme = { bg: darkMode ? '#0f172a' : '#f9fafb', card: darkMode ? '#1e293b' : '#ffffff', text: darkMode ? '#f1f5f9' : '#1f2937', subText: darkMode ? '#94a3b8' : '#6b7280', border: darkMode ? '#334155' : '#f3f4f6', accentText: darkMode ? '#818cf8' : '#4f46e5', modalBg: darkMode ? '#1e293b' : '#ffffff' };
 
