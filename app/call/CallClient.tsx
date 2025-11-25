@@ -8,11 +8,10 @@ import { ref, update, onDisconnect, serverTimestamp, get, push, onChildAdded, re
 import UserSearch from '../components/UserSearch'
 import Header from '../components/Header'
 import AIAssistant from '../components/AIAssistant'
-// تأكد من تثبيت: npm install react-qr-code
 import QRCode from 'react-qr-code'
 
-const APP_ID = 221724333;
-const SERVER_SECRET = "480e962860b99d4828e308ff7f340cf8";
+const APP_ID = 538404156;
+const SERVER_SECRET = "abb68cf361c5f3d0814737785193153a";
 const PUBLIC_DOMAIN = "https://face2-three.vercel.app"; 
 const CALL_LIMIT_MS = 60 * 60 * 1000;
 const WARNING_COUNTDOWN_SEC = 15;
@@ -28,8 +27,7 @@ type CallLog = {
 };
 
 export default function CallClient() {
-  // State
-  const [myId, setMyId] = useState<string | null>(null); // جعلناها null في البداية للتحقق
+  const [myId, setMyId] = useState<string>('');
   const [username, setUsername] = useState('');
   const [isZegoReady, setIsZegoReady] = useState(false);
   const [notification, setNotification] = useState<{ message: string, type: 'error' | 'info' } | null>(null);
@@ -50,7 +48,6 @@ export default function CallClient() {
   const searchParams = useSearchParams();
   const targetIdFromLink = searchParams.get('target');
   
-  // Refs
   const callLimitTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const callStartTimeRef = useRef<number | null>(null);
@@ -63,165 +60,7 @@ export default function CallClient() {
   const videoContainerRef = useRef<HTMLDivElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
-  // --- 1. التحقق من المستخدم (Firebase Check) ---
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedId = localStorage.getItem('face2_userId'); 
-      const storedUsername = localStorage.getItem('face2_username'); 
-      const storedHistory = localStorage.getItem('face2_history');
-      
-      if (storedHistory) { try { setCallHistory(JSON.parse(storedHistory)); } catch (e) { } }
-      
-      if (!storedId || !storedUsername) { 
-          router.push('/setup'); 
-      } else {
-        // فحص وجود المستخدم في السيرفر
-        get(ref(db, `users/${storedId}`)).then((snapshot) => {
-            if (!snapshot.exists()) {
-                console.warn("🚫 User invalid/deleted. Forcing logout.");
-                handleLogout(); // خروج قسري
-            } else {
-                // المستخدم سليم، نبدأ الإعدادات
-                setMyId(storedId); 
-                setUsername(storedUsername);
-                
-                // تحديث الحالة في Firebase
-                const userRef = ref(db, `users/${storedId}`);
-                update(userRef, { online: true, isBusy: false, inMeeting: false, lastSeen: serverTimestamp() });
-                onDisconnect(userRef).update({ online: false, inMeeting: false, lastSeen: serverTimestamp() });
-                
-                // الاستماع للإشعارات
-                const notificationsRef = ref(db, `notifications/${storedId}`);
-                onChildAdded(notificationsRef, async (snapshot) => {
-                  const data = snapshot.val();
-                  if (data && !data.read) {
-                    update(ref(db, `notifications/${storedId}/${snapshot.key}`), { read: true });
-                    let callerAvatar = "👤"; if (data.callerId) callerAvatar = await getUserAvatar(data.callerId);
-                    if (data.type === 'missed_call') { 
-                      playAlertSound();
-                      addCallLog({ id: `missed_${Date.now()}`, name: data.callerName, avatar: callerAvatar, status: 'blocked', time: new Date(data.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'incoming' }); 
-                      showToast(`🔔 تنبيه: ${data.callerName} ينبهك!`, 'info'); 
-                    } else { showToast(`🔔 إشعار: ${data.callerName} حاول الاتصال بك.`, 'info'); }
-                  }
-                });
-            }
-        }).catch(err => {
-            console.error("Firebase error:", err);
-        });
-      }
-    }
-  }, []); // يعمل مرة واحدة عند التحميل
-
-  // --- 2. تهيئة ZegoCloud (منفصلة لضمان عدم التضارب) ---
-  useEffect(() => {
-    if (myId && username && !zegoInstanceRef.current) {
-        const initZego = async () => {
-            try {
-                console.log("🚀 Initializing Zego for:", myId);
-                
-                // 1. تنظيف أي نسخة قديمة قبل البدء
-                if (zegoInstanceRef.current) {
-                    (zegoInstanceRef.current as any).destroy();
-                    zegoInstanceRef.current = null;
-                }
-
-                const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
-                    APP_ID, 
-                    SERVER_SECRET, 
-                    "face2_global_room", 
-                    myId, 
-                    username
-                );
-
-                const zp = ZegoUIKitPrebuilt.create(kitToken);
-                zp.addPlugins({ ZIM }); // إضافة ZIM للرنين
-                zegoInstanceRef.current = zp;
-                
-                zp.setCallInvitationConfig({
-                    onSetRoomConfigBeforeJoining: (callType) => {
-                        stopVibration(); 
-                        setCallStatus('CONNECTED'); 
-                        callStartTimeRef.current = Date.now();
-                        if (myId) update(ref(db, `users/${myId}`), { inMeeting: true });
-                        return {
-                            container: videoContainerRef.current,
-                            scenario: { mode: ZegoUIKitPrebuilt.OneONoneCall },
-                            videoResolutionList: [ZegoUIKitPrebuilt.VideoResolution_180P],
-                            videoResolutionDefault: ZegoUIKitPrebuilt.VideoResolution_180P,
-                            showScreenSharingButton: false, 
-                            maxMemberCount: 2,
-                            showPreJoinView: false, // دخول فوري
-                            turnOnMicrophoneWhenJoining: true, 
-                            turnOnCameraWhenJoining: true, 
-                            showMyCameraToggleButton: true, 
-                            showMyMicrophoneToggleButton: true, 
-                            showAudioVideoSettingsButton: true,
-                            onInRoomCommandReceived: (fromUser: any, command: string) => {
-                                if (command === "ACTION_HEART") triggerHeartAnimation();
-                            },
-                            onUserLeave: (users) => { showToast(`📴 الطرف الآخر أنهى المكالمة`, 'info'); forceEndCall(); },
-                            onLeaveRoom: () => { forceEndCall(); }
-                        };
-                    },
-                    onIncomingCallReceived: (callID, caller) => {
-                        // إذا كنت مشغولاً، ارفض وتجاهل
-                        if (isDoNotDisturb) {
-                            playAlertSound(); 
-                            if(zegoInstanceRef.current) zegoInstanceRef.current.hangUp(); 
-                            return; 
-                        }
-                        startVibration(); 
-                        currentRoomIdRef.current = callID; 
-                        currentPeerNameRef.current = caller.userName || "مجهول";
-                        getUserAvatar(caller.userID).then(avatar => { currentPeerAvatarRef.current = avatar; });
-                    },
-                    onIncomingCallCanceled: () => { 
-                        stopVibration(); 
-                        setCallStatus('IDLE'); 
-                        if (myId) update(ref(db, `users/${myId}`), { inMeeting: false }); 
-                    },
-                    onOutgoingCallAccepted: (callID) => { 
-                        setCallStatus('CONNECTED'); 
-                        currentRoomIdRef.current = callID; 
-                    },
-                    onOutgoingCallDeclined: (callID, callee) => {
-                        showToast(`❌ رفض ${callee.userName} المكالمة.`, 'error'); 
-                        setCallStatus('IDLE');
-                        if (myId) update(ref(db, `users/${myId}`), { inMeeting: false });
-                        addCallLog({ id: `rejected_${Date.now()}`, name: callee.userName || "مستخدم", avatar: currentPeerAvatarRef.current, status: 'rejected', time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'outgoing' });
-                    },
-                    onCallInvitationEnded: (reason, data) => {
-                        stopVibration();
-                        if (callStartTimeRef.current) {
-                            const durationMs = Date.now() - callStartTimeRef.current;
-                            if (durationMs > 1000) addCallLog({ id: `call_${Date.now()}`, name: currentPeerNameRef.current || "مستخدم", avatar: currentPeerAvatarRef.current, status: 'completed', duration: formatDuration(durationMs), time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'outgoing' });
-                            callStartTimeRef.current = null;
-                        }
-                        if (callStatus === 'CONNECTED') forceEndCall(); 
-                        else { 
-                            setCallStatus('IDLE'); 
-                            if (myId) update(ref(db, `users/${myId}`), { inMeeting: false }); 
-                            if(videoContainerRef.current) videoContainerRef.current.innerHTML = ''; 
-                        }
-                    },
-                });
-                setIsZegoReady(true);
-            } catch (error) { console.error("Zego Init Error:", error); }
-        };
-        initZego();
-    }
-
-    // 🧹 تنظيف عند الخروج من الصفحة (مهم جداً لمنع التضارب)
-    return () => {
-        if (zegoInstanceRef.current) {
-            console.log("🧹 Destroying Zego Instance");
-            zegoInstanceRef.current.destroy();
-            zegoInstanceRef.current = null;
-        }
-    };
-  }, [myId, username]); // يعمل فقط عندما يتم تحميل myId و username
-
-  // --- دوال المساعدة (الصوت، الاهتزاز، ...) ---
+  // --- 🔓 فك حظر الصوت ---
   useEffect(() => {
     const unlockAudio = () => {
       if (typeof window !== 'undefined') {
@@ -237,6 +76,7 @@ export default function CallClient() {
     return () => { document.removeEventListener('click', unlockAudio); document.removeEventListener('touchstart', unlockAudio); };
   }, []);
 
+  // --- 🔊 الصوت ---
   const playAlertSound = () => {
     if (!audioContextRef.current && typeof window !== 'undefined') {
         const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -262,6 +102,7 @@ export default function CallClient() {
     }
   };
 
+  // --- Helpers ---
   const startVibration = () => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200]); };
   const stopVibration = () => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(0); };
   const showToast = (message: string, type: 'error' | 'info' = 'info') => { setNotification({ message, type }); setTimeout(() => setNotification(null), 5000); };
@@ -280,9 +121,9 @@ export default function CallClient() {
     if (zegoInstanceRef.current) { (zegoInstanceRef.current as any).sendInRoomCommand("ACTION_HEART", []); }
   };
 
+  // --- 🔥 دالة الاتصال 🔥 ---
   const handleCallUser = async (targetUser: { id: string, username: string }) => {
-    if (!zegoInstanceRef.current) return showToast("⚠️ جاري الاتصال بالخدمة، انتظر لحظة...", 'info');
-    
+    if (!zegoInstanceRef.current) return showToast("⚠️ النظام غير جاهز، حاول تحديث الصفحة...", 'info');
     const targetId = targetUser.id.trim();
     const targetName = targetUser.username || "مستخدم";
 
@@ -307,15 +148,15 @@ export default function CallClient() {
           callees: [{ userID: targetId, userName: targetName }], 
           callType: ZegoUIKitPrebuilt.InvitationTypeVideoCall, 
           timeout: 60 
-      })
-      .then((res) => { 
-          if (res.errorInvitees.length) { showToast("📴 المستخدم غير متصل أو حدث خطأ.", 'error'); }
-      })
-      .catch(err => { console.error("Zego Invitation Error:", err); showToast("❌ فشل في إرسال الدعوة.", 'error'); });
+      }).catch(err => {
+          console.error("Zego Invitation Error:", err);
+          showToast("❌ فشل في إرسال الدعوة.", 'error');
+      });
 
     } catch (err) { console.error(err); showToast("❌ خطأ في الشبكة", 'error'); }
   };
 
+  // --- المشاركة ---
   const openShareOptions = () => { setShowShareOptions(true); };
   const copyLink = async () => {
     if (!myId) return;
@@ -341,6 +182,131 @@ export default function CallClient() {
 
   const handleAcceptInvite = () => { if (invitedUser) { handleCallUser(invitedUser); setInvitedUser(null); router.replace('/call'); } };
 
+  // --- ⚙️ التحقق والتهيئة (الحل الجذري) ⚙️ ---
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedId = localStorage.getItem('face2_userId'); 
+      const storedUsername = localStorage.getItem('face2_username'); 
+      
+      if (!storedId || !storedUsername) { 
+          router.push('/setup'); 
+      } else {
+        // فحص وجود المستخدم في Firebase
+        get(ref(db, `users/${storedId}`)).then((snapshot) => {
+            if (!snapshot.exists()) {
+                console.warn("User deleted. Logging out.");
+                handleLogout(); // خروج قسري
+            } else {
+                setMyId(storedId); 
+                setUsername(storedUsername);
+                
+                // تحديث الحالة
+                const userRef = ref(db, `users/${storedId}`);
+                update(userRef, { online: true, isBusy: false, inMeeting: false, lastSeen: serverTimestamp() });
+                onDisconnect(userRef).update({ online: false, inMeeting: false, lastSeen: serverTimestamp() });
+                
+                // إشعارات Firebase
+                const notificationsRef = ref(db, `notifications/${storedId}`);
+                onChildAdded(notificationsRef, async (snapshot) => {
+                  const data = snapshot.val();
+                  if (data && !data.read) {
+                    update(ref(db, `notifications/${storedId}/${snapshot.key}`), { read: true });
+                    let callerAvatar = "👤"; if (data.callerId) callerAvatar = await getUserAvatar(data.callerId);
+                    if (data.type === 'missed_call') { 
+                      playAlertSound();
+                      addCallLog({ id: `missed_${Date.now()}`, name: data.callerName, avatar: callerAvatar, status: 'blocked', time: new Date(data.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'incoming' }); 
+                      showToast(`🔔 تنبيه: ${data.callerName} ينبهك!`, 'info'); 
+                    } else { showToast(`🔔 إشعار: ${data.callerName} حاول الاتصال بك.`, 'info'); }
+                  }
+                });
+            }
+        });
+      }
+    }
+  }, [router]);
+
+  // --- تهيئة Zego ---
+  useEffect(() => {
+    if (myId && username) {
+        const initZego = async () => {
+            // ✅ تنظيف النسخة السابقة دائماً قبل الإنشاء
+            if (zegoInstanceRef.current) {
+                (zegoInstanceRef.current as any).destroy();
+                zegoInstanceRef.current = null;
+            }
+
+            try {
+                // 🔥 التغيير السحري: استخدام myId كمعرف للغرفة لضمان عدم التضارب
+                // هذا يضمن أن كل مستخدم لديه "جلسة" فريدة خاصة به
+                const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+                    APP_ID, 
+                    SERVER_SECRET, 
+                    myId, // ⬅️ استخدام ID المستخدم كـ RoomID
+                    myId, 
+                    username
+                );
+
+                const zp = ZegoUIKitPrebuilt.create(kitToken);
+                zp.addPlugins({ ZIM }); 
+                zegoInstanceRef.current = zp;
+                
+                zp.setCallInvitationConfig({
+                  onSetRoomConfigBeforeJoining: (callType) => {
+                    stopVibration(); setCallStatus('CONNECTED'); callStartTimeRef.current = Date.now();
+                    if (myId) update(ref(db, `users/${myId}`), { inMeeting: true });
+                    return {
+                      container: videoContainerRef.current,
+                      scenario: { mode: ZegoUIKitPrebuilt.OneONoneCall },
+                      videoResolutionList: [ZegoUIKitPrebuilt.VideoResolution_180P],
+                      videoResolutionDefault: ZegoUIKitPrebuilt.VideoResolution_180P,
+                      showScreenSharingButton: false, maxMemberCount: 2, showPreJoinView: false,
+                      turnOnMicrophoneWhenJoining: true, turnOnCameraWhenJoining: true, showMyCameraToggleButton: true, showMyMicrophoneToggleButton: true, showAudioVideoSettingsButton: true,
+                      onInRoomCommandReceived: (fromUser: any, command: string) => {
+                        if (command === "ACTION_HEART") triggerHeartAnimation();
+                      },
+                      onUserLeave: (users) => { showToast(`📴 الطرف الآخر أنهى المكالمة`, 'info'); forceEndCall(); },
+                      onLeaveRoom: () => { forceEndCall(); }
+                    };
+                  },
+                  onIncomingCallReceived: (callID, caller) => {
+                    if (isDoNotDisturb) { playAlertSound(); if(zegoInstanceRef.current) zegoInstanceRef.current.hangUp(); return; }
+                    startVibration(); currentRoomIdRef.current = callID; currentPeerNameRef.current = caller.userName || "مجهول";
+                    getUserAvatar(caller.userID).then(avatar => { currentPeerAvatarRef.current = avatar; });
+                  },
+                  onIncomingCallCanceled: () => { stopVibration(); setCallStatus('IDLE'); if (myId) update(ref(db, `users/${myId}`), { inMeeting: false }); },
+                  onOutgoingCallAccepted: (callID) => { setCallStatus('CONNECTED'); currentRoomIdRef.current = callID; },
+                  onOutgoingCallDeclined: (callID, callee) => {
+                    showToast(`❌ رفض ${callee.userName} المكالمة.`, 'error'); setCallStatus('IDLE');
+                    if (myId) update(ref(db, `users/${myId}`), { inMeeting: false });
+                    addCallLog({ id: `rejected_${Date.now()}`, name: callee.userName || "مستخدم", avatar: currentPeerAvatarRef.current, status: 'rejected', time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'outgoing' });
+                  },
+                  onCallInvitationEnded: (reason, data) => {
+                    stopVibration();
+                    if (callStartTimeRef.current) {
+                      const durationMs = Date.now() - callStartTimeRef.current;
+                      if (durationMs > 1000) { addCallLog({ id: `call_${Date.now()}`, name: currentPeerNameRef.current || "مستخدم", avatar: currentPeerAvatarRef.current, status: 'completed', duration: formatDuration(durationMs), time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }), type: 'outgoing' }); }
+                      callStartTimeRef.current = null;
+                    }
+                    if (callStatus === 'CONNECTED') { forceEndCall(); } else { setCallStatus('IDLE'); if (myId) update(ref(db, `users/${myId}`), { inMeeting: false }); if(videoContainerRef.current) videoContainerRef.current.innerHTML = ''; }
+                  },
+                });
+                setIsZegoReady(true);
+                console.log("✅ Zego Initialized for user:", myId);
+              } catch (error) { console.error("Zego Init Error:", error); }
+        };
+        initZego();
+    }
+    
+    // تنظيف عند تغيير الـ ID
+    return () => {
+        if (zegoInstanceRef.current) {
+            (zegoInstanceRef.current as any).destroy();
+            zegoInstanceRef.current = null;
+        }
+    };
+  }, [myId, username]); // يعتمد على myId لضمان إعادة الإنشاء
+
+  // --- UI Effects ---
   useEffect(() => {
     if (callStatus === 'CONNECTED') { document.body.style.overflow = 'hidden'; document.body.style.position = 'fixed'; document.body.style.width = '100%'; } 
     else { document.body.style.overflow = ''; document.body.style.position = ''; document.body.style.width = ''; }
@@ -372,11 +338,13 @@ export default function CallClient() {
   const handleContinueCall = () => { setShowTimeoutModal(false); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); startInactivityTimer(); showToast("✅ تم تمديد المكالمة", "info"); };
   const clearTimers = () => { if (callLimitTimerRef.current) clearTimeout(callLimitTimerRef.current); if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current); setShowTimeoutModal(false); };
 
+  // --- 🔥 الخروج القسري (الحل النهائي) 🔥 ---
   const handleLogout = () => {
     if (myId) { remove(ref(db, `users/${myId}`)); }
-    localStorage.removeItem('face2_userId'); localStorage.removeItem('face2_username'); localStorage.removeItem('face2_avatar');
-    if (zegoInstanceRef.current) zegoInstanceRef.current.destroy();
-    window.location.href = '/setup';
+    localStorage.clear(); // مسح كل شيء
+    if (zegoInstanceRef.current) (zegoInstanceRef.current as any).destroy();
+    // إعادة تحميل الصفحة بالقوة لمسح الذاكرة
+    window.location.href = '/setup'; 
   };
 
   const theme = { bg: darkMode ? '#0f172a' : '#f9fafb', card: darkMode ? '#1e293b' : '#ffffff', text: darkMode ? '#f1f5f9' : '#1f2937', subText: darkMode ? '#94a3b8' : '#6b7280', border: darkMode ? '#334155' : '#f3f4f6', accentText: darkMode ? '#818cf8' : '#4f46e5', modalBg: darkMode ? '#1e293b' : '#ffffff' };
