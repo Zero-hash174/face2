@@ -1,196 +1,275 @@
-import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom'; // 🟢 استيراد مهم جداً لحل مشكلة المكان
-import { db } from '../../firebase/firebase';
-import { ref, onValue, off, query, limitToLast, set, remove } from 'firebase/database';
+'use client'
+import { useState, useEffect } from 'react'
+import { db } from '../../firebase/firebase'
+import { ref, onValue, query, orderByChild, limitToLast } from 'firebase/database'
 
-export default function UserSearch({ onCall, inCall }: { onCall: (user: any) => void, inCall: boolean }) {
-  const [searchTerm, setSearchTerm] = useState('');
+// --- الأيقونات الكلاسيكية ---
+const SearchIcons = {
+  Video: () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg> ),
+  Phone: () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg> ),
+  Chat: () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> ),
+  Block: () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> ),
+  StarFilled: () => ( <svg width="18" height="18" viewBox="0 0 24 24" fill="#fbbf24" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> ),
+  StarOutline: () => ( <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> ),
+  Plus: () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> ),
+  Warning: () => ( <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> )
+};
+
+interface UserSearchProps {
+  onCall: (user: any, type: 'video' | 'audio') => void;
+  onChat: (user: any) => void;
+  inCall: boolean;
+  blockedUsers: string[];
+  toggleBlock: (id: string) => void;
+  loadingTargetId: string | null;
+  unreadCounts: {[key: string]: number};
+}
+
+export default function UserSearch({ onCall, onChat, inCall, blockedUsers, toggleBlock, loadingTargetId, unreadCounts }: UserSearchProps) {
   const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
-  
-  // حالة المستخدم المختار للقائمة
-  const [selectedUserForBlock, setSelectedUserForBlock] = useState<any>(null);
-  
-  // حالة رسالة التنبيه (في الوسط)
-  const [centerToast, setCenterToast] = useState<{ msg: string, type: 'success' | 'error' } | null>(null);
-
-  // للتأكد أننا في المتصفح (Client Side) لتجنب أخطاء الـ Portal
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dataLimit, setDataLimit] = useState(20); 
+  const [recentContacts, setRecentContacts] = useState<string[]>([]);
+  const [pendingBlockUser, setPendingBlockUser] = useState<any>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreUsers, setHasMoreUsers] = useState(true);
 
   useEffect(() => {
-    if (inCall) return;
+    const storedRecents = localStorage.getItem('face2_recents');
+    if (storedRecents) setRecentContacts(JSON.parse(storedRecents));
 
-    let currentId = '';
-    if (typeof window !== 'undefined') {
-        currentId = localStorage.getItem('face2_userId') || '';
-    }
+    const myId = localStorage.getItem('face2_userId');
 
-    const recentUsersQuery = query(ref(db, 'users'), limitToLast(100));
-    const blockedRef = ref(db, `blocked/${currentId}`);
+    const usersRef = query(
+        ref(db, 'users'), 
+        orderByChild('lastSeen'), 
+        limitToLast(dataLimit)
+    );
 
-    const unsubscribeUsers = onValue(recentUsersQuery, (snapshot) => {
+    const unsubscribe = onValue(usersRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        const userList = Object.values(data).filter((u: any) => u.id !== currentId);
-        userList.sort((a: any, b: any) => (a.online === b.online ? 0 : a.online ? -1 : 1));
-        setUsers(userList);
-      } else { setUsers([]); }
-      setLoading(false);
+        const totalFetched = Object.keys(data).length;
+        if (totalFetched < dataLimit) {
+            setHasMoreUsers(false);
+        } else {
+            setHasMoreUsers(true);
+        }
+
+        const usersList = Object.keys(data)
+          .map(key => ({
+            id: key,
+            ...data[key],
+            username: data[key].username || 'مستخدم مجهول',
+            avatar: data[key].avatar || '👤'
+          }))
+          .filter(u => u.id !== myId); 
+        
+        // الترتيب الأولي (الأحدث أولاً)
+        setUsers(usersList.reverse());
+        setIsLoadingMore(false);
+      } else {
+          setUsers([]);
+          setHasMoreUsers(false);
+      }
     });
 
-    const unsubscribeBlocked = onValue(blockedRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) setBlockedUsers(Object.keys(data));
-      else setBlockedUsers([]);
-    });
+    return () => unsubscribe();
+  }, [dataLimit]); 
 
-    return () => { off(recentUsersQuery); off(blockedRef); };
-  }, [inCall]);
-
-  // --- دالة إظهار الرسالة في الوسط ---
-  const showCenterMsg = (msg: string, type: 'success' | 'error') => {
-    setCenterToast({ msg, type });
-    setTimeout(() => setCenterToast(null), 2000);
+  const loadMoreUsers = () => {
+      if (!hasMoreUsers) return;
+      setIsLoadingMore(true);
+      setDataLimit(prev => prev + 20);
   };
 
-  // --- دوال الحظر ---
-  const handleBlock = async (targetId: string) => {
-    const myId = localStorage.getItem('face2_userId');
-    if (!myId) return;
-    await set(ref(db, `blocked/${myId}/${targetId}`), true);
-    setSelectedUserForBlock(null); 
-    showCenterMsg("🚫 تم حظر المستخدم بنجاح", "error");
+  const toggleFavorite = (userId: string) => {
+      let newRecents = [...recentContacts];
+      if (newRecents.includes(userId)) {
+          newRecents = newRecents.filter(id => id !== userId);
+      } else {
+          newRecents.unshift(userId);
+      }
+      setRecentContacts(newRecents);
+      localStorage.setItem('face2_recents', JSON.stringify(newRecents));
   };
 
-  const handleUnblock = async (targetId: string) => {
-    const myId = localStorage.getItem('face2_userId');
-    if (!myId) return;
-    await remove(ref(db, `blocked/${myId}/${targetId}`));
-    setSelectedUserForBlock(null); 
-    showCenterMsg("✅ تم إلغاء الحظر", "success");
+  // ✅✅ الترتيب الصحيح: المتصلين أولاً، ثم المفضلين ✅✅
+  const sortedUsers = [...users].sort((a, b) => {
+      // 1. الأولوية القصوى للمتصلين (Online)
+      if (a.online && !b.online) return -1;
+      if (!a.online && b.online) return 1;
+
+      // 2. داخل المتصلين (وغير المتصلين)، رتب حسب المفضلة
+      const isARecent = recentContacts.includes(a.id);
+      const isBRecent = recentContacts.includes(b.id);
+      if (isARecent && !isBRecent) return -1;
+      if (!isARecent && isBRecent) return 1;
+
+      // 3. أخيراً، رتب حسب الوقت (الأحدث)
+      return (b.lastSeen || 0) - (a.lastSeen || 0);
+  });
+
+  const filteredUsers = sortedUsers.filter(user => {
+    const nameToSearch = (user.username || '').toString(); 
+    return nameToSearch.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  const displayedUsers = searchTerm ? filteredUsers : filteredUsers; 
+
+  const handleAvatarClick = (user: any) => {
+      setPendingBlockUser(user);
   };
 
-  if (inCall) return null;
+  const confirmBlockAction = () => {
+      if (pendingBlockUser) {
+          toggleBlock(pendingBlockUser.id);
+          setPendingBlockUser(null);
+      }
+  };
 
-  const filteredUsers = users.filter(user => 
-    user.username && user.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleCallClick = (user: any, type: 'video' | 'audio') => {
+      if (!user.online) return; 
+      onCall(user, type);
+  };
 
   return (
-    <div style={{ width: '100%' }}>
+    <div className="search-wrapper">
+      <input 
+        type="text" 
+        placeholder="بحث عن صديق..." 
+        className="search-input"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
       
-      {/* 👇👇 استخدام Portal لإخراج الرسائل والنوافذ خارج القائمة تماماً 👇👇 */}
-      {mounted && createPortal(
-        <>
-          {centerToast && (
-            <div style={{
-                position: 'fixed',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                backgroundColor: centerToast.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)',
-                color: 'white',
-                padding: '20px 40px',
-                borderRadius: '50px',
-                boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
-                zIndex: 2147483647, // فوق كل شيء
-                fontWeight: 'bold',
-                fontSize: '18px',
-                animation: 'pop 0.3s ease-out',
-                textAlign: 'center',
-                minWidth: '250px'
-            }}>
-                {centerToast.msg}
-            </div>
-          )}
+      <div style={{marginTop: 15, display: 'flex', flexDirection: 'column', gap: 10}}>
+        {displayedUsers.length === 0 ? (
+            <p style={{textAlign: 'center', color: '#9ca3af', fontSize: '14px', marginTop: '20px'}}>
+                {searchTerm ? 'لا توجد نتائج' : 'جاري تحميل القائمة...'}
+            </p>
+        ) : (
+            displayedUsers.map(user => {
+                const isBlocked = blockedUsers.includes(user.id);
+                const isLoading = loadingTargetId === user.id;
+                const hasUnread = unreadCounts[user.id] > 0;
+                const isCallDisabled = inCall || isBlocked || isLoading;
+                const isRecent = recentContacts.includes(user.id);
 
-          {selectedUserForBlock && (
-            <div 
-              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 2147483646, display: 'flex', alignItems: 'center', justifyContent: 'center' }} 
-              onClick={() => setSelectedUserForBlock(null)}
-            >
-              <div 
-                style={{ background: '#fff', padding: '30px', borderRadius: '25px', width: '300px', textAlign: 'center', animation: 'pop 0.3s ease-out' }} 
-                onClick={e => e.stopPropagation()}
-              >
-                <div style={{ fontSize: '60px', marginBottom: '15px' }}>{selectedUserForBlock.avatar || '👤'}</div>
-                <h3 style={{ marginBottom: '10px', fontWeight: '900', fontSize: '20px', color: '#1f2937' }}>{selectedUserForBlock.username}</h3>
-                <p style={{ marginBottom: '25px', color: '#6b7280', fontSize: '14px' }}>إعدادات الخصوصية لهذا المستخدم</p>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {blockedUsers.includes(selectedUserForBlock.id) ? (
-                        <button onClick={() => handleUnblock(selectedUserForBlock.id)} className="btn" style={{ backgroundColor: '#10b981', padding: '12px' }}>🔓 إلغاء الحظر</button>
-                    ) : (
-                        <button onClick={() => handleBlock(selectedUserForBlock.id)} className="btn-danger" style={{ padding: '12px' }}>🚫 حظر المستخدم</button>
-                    )}
-                    
-                    <button onClick={() => setSelectedUserForBlock(null)} style={{ marginTop: '10px', background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '14px' }}>تراجع</button>
-                </div>
-              </div>
-            </div>
-          )}
-        </>,
-        document.body // 🟢 يرمي النافذة في جسم الصفحة مباشرة
-      )}
+                return (
+                    <div key={user.id} className="user-card-row" style={{border: isRecent ? '1px solid rgba(251, 191, 36, 0.4)' : undefined}}>
+                        <div className="user-info-right">
+                            <div className="user-avatar-circle" onClick={() => handleAvatarClick(user)} title="اضغط للحظر">
+                                {user.avatar}
+                                <div className={`status-dot-on-avatar ${user.online ? 'online' : 'offline'}`} 
+                                     style={{background: user.online ? '#10b981' : '#9ca3af', borderColor: '#1f2937'}}></div>
+                                {isBlocked && <div style={{position:'absolute', inset:0, background:'rgba(0,0,0,0.5)', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px'}}>🚫</div>}
+                            </div>
+                            <div className="user-details">
+                                <span className="user-name">
+                                    {user.username}
+                                </span>
+                                <span style={{fontSize: 11, color: user.isBusy ? '#ef4444' : (user.online ? '#10b981' : '#6b7280')}}>
+                                    {isBlocked ? 'محظور' : (user.online ? (user.isBusy ? 'مشغول' : 'متصل الآن') : 'غير متصل')} 
+                                </span>
+                            </div>
+                        </div>
 
-      <div style={{ marginBottom: '20px', position: 'relative' }}>
-        <input type="text" placeholder="اكتب الاسم للبحث السريع..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="input-field" style={{ textAlign: 'right' }} />
-        <span style={{ position: 'absolute', top: '16px', right: '15px', fontSize: '20px', color: '#9ca3af' }}>🔍</span>
-      </div>
+                        <div className="action-buttons-row">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); toggleFavorite(user.id); }}
+                                className="btn-action-circle"
+                                title={isRecent ? "إزالة من المفضلة" : "إضافة للمفضلة"}
+                                style={{background: 'transparent', width: '30px', height: '30px', padding: 0}}
+                            >
+                                {isRecent ? <SearchIcons.StarFilled /> : <SearchIcons.StarOutline />}
+                            </button>
 
-      <div style={{ padding: '5px' }}>
-        {loading ? ( <div style={{ textAlign: 'center', color: '#9ca3af', padding: '40px' }}>جاري تحميل القائمة... 🚀</div> ) : filteredUsers.length > 0 ? (
-          filteredUsers.map((user) => {
-            const isBusy = user.isBusy && user.online;
-            const isBlockedByMe = blockedUsers.includes(user.id);
+                            <button onClick={() => onChat(user)} className="btn-action-circle chat-btn" style={{position: 'relative'}} disabled={inCall || isLoading}>
+                                <SearchIcons.Chat />
+                                {hasUnread && <div className="unread-dot"></div>}
+                            </button>
 
-            return (
-              <div key={user.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', backgroundColor: isBlockedByMe ? '#fee2e2' : '#fff', borderRadius: '20px', marginBottom: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)', border: isBusy ? '1px solid #fecaca' : '1px solid #f3f4f6' }}>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <div 
-                    onClick={() => setSelectedUserForBlock(user)} 
-                    style={{ position: 'relative', cursor: 'pointer' }}
-                    title="اضغط للحظر/إلغاء الحظر"
-                  >
-                    <div style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#f9fafb', border: '2px solid #e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', filter: isBlockedByMe ? 'grayscale(100%)' : 'none', transition: 'transform 0.2s' }}> 
-                        {user.avatar || '👤'} 
+                            <button 
+                                onClick={() => handleCallClick(user, 'audio')} 
+                                className="btn-call-modern"
+                                style={{
+                                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', 
+                                    opacity: (isCallDisabled || !user.online) ? 0.5 : 1, 
+                                    cursor: (isCallDisabled || !user.online) ? 'not-allowed' : 'pointer'
+                                }}
+                                disabled={isCallDisabled || !user.online}
+                                title="اتصال صوتي"
+                            >
+                                <SearchIcons.Phone />
+                            </button>
+
+                            <button 
+                                onClick={() => handleCallClick(user, 'video')} 
+                                className="btn-call-modern online"
+                                style={{
+                                    opacity: (isCallDisabled || !user.online) ? 0.5 : 1, 
+                                    cursor: (isCallDisabled || !user.online) ? 'not-allowed' : 'pointer'
+                                }}
+                                disabled={isCallDisabled || !user.online}
+                                title="اتصال فيديو"
+                            >
+                                <SearchIcons.Video />
+                            </button>
+                        </div>
                     </div>
-                    {!isBlockedByMe && <span style={{ position: 'absolute', bottom: '2px', right: '2px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: isBusy ? '#f59e0b' : (user.online ? '#22c55e' : '#9ca3af'), border: '2px solid #fff' }}></span>}
-                  </div>
+                )
+            })
+        )}
 
-                  <div style={{ textAlign: 'right' }}>
-                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1f2937' }}>
-                        {user.username} {isBlockedByMe && <span style={{fontSize:'10px', color: '#ef4444', border:'1px solid #ef4444', padding:'2px 5px', borderRadius:'5px'}}>محظور</span>}
-                    </h3>
-                    <p style={{ margin: 0, fontSize: '12px', color: isBlockedByMe ? '#9ca3af' : (isBusy ? '#d97706' : (user.online ? '#16a34a' : '#9ca3af')) }}> 
-                        {isBlockedByMe ? 'تم حظره' : (isBusy ? 'مشغول' : (user.online ? 'متصل' : 'غير متصل'))} 
-                    </p>
-                  </div>
-                </div>
-
+        {!searchTerm && (
+            hasMoreUsers ? (
                 <button 
-                    onClick={() => !isBlockedByMe && onCall(user)} 
-                    disabled={!user.online || isBlockedByMe} 
-                    style={{ 
-                        width: '45px', height: '45px', borderRadius: '50%', border: 'none', 
-                        backgroundColor: isBlockedByMe ? '#fee2e2' : (isBusy ? '#ffedd5' : (user.online ? '#10b981' : '#e5e7eb')), 
-                        color: isBlockedByMe ? '#ef4444' : (isBusy ? '#ea580c' : '#fff'), 
-                        fontSize: '20px', cursor: (user.online && !isBlockedByMe) ? 'pointer' : 'not-allowed', 
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: (user.online && !isBlockedByMe) ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none'
+                    onClick={loadMoreUsers}
+                    disabled={isLoadingMore}
+                    style={{
+                        width: '100%', padding: '12px', background: 'rgba(255,255,255,0.05)', 
+                        color: '#9ca3af', border: '1px dashed rgba(255,255,255,0.2)', 
+                        borderRadius: '15px', cursor: 'pointer', marginTop: '10px',
+                        fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                        opacity: isLoadingMore ? 0.5 : 1
                     }}
-                > 
-                    {isBlockedByMe ? '🚫' : (isBusy ? '🔔' : '📞')} 
+                >
+                    {isLoadingMore ? 'جاري التحميل...' : <span>عرض المزيد ({dataLimit})</span>}
+                    {!isLoadingMore && <SearchIcons.Plus />}
                 </button>
-
-              </div>
-            );
-          })
-        ) : ( <div style={{ textAlign: 'center', padding: '20px', opacity: 0.6 }}>لا يوجد مستخدمين</div> )}
+            ) : (
+                <p style={{textAlign: 'center', color: '#6b7280', fontSize: '13px', marginTop: '15px', paddingBottom: '20px'}}>
+                    🎉 لا يوجد أشخاص آخرون
+                </p>
+            )
+        )}
       </div>
+
+      {pendingBlockUser && (
+          <div className="modal-overlay" onClick={() => setPendingBlockUser(null)}>
+              <div className="modern-modal" onClick={e => e.stopPropagation()} style={{textAlign: 'center', border: '1px solid #374151', width: '300px'}}>
+                  <div style={{display:'flex', justifyContent:'center', marginBottom: '15px'}}><SearchIcons.Warning /></div>
+                  <h3 style={{color: 'white', marginBottom: '10px'}}>
+                      {blockedUsers.includes(pendingBlockUser.id) ? 'إلغاء الحظر؟' : 'حظر المستخدم؟'}
+                  </h3>
+                  <p style={{color: '#9ca3af', fontSize: '14px', marginBottom: '20px'}}>
+                      {blockedUsers.includes(pendingBlockUser.id) 
+                        ? `السماح لـ ${pendingBlockUser.username} بالاتصال؟`
+                        : `منع ${pendingBlockUser.username} من الاتصال؟`
+                      }
+                  </p>
+                  <div style={{display: 'flex', gap: '10px'}}>
+                      <button onClick={confirmBlockAction} className="btn-pill-red" style={{flex: 1, justifyContent: 'center', padding: '10px', fontSize: '14px', background: blockedUsers.includes(pendingBlockUser.id) ? '#10b981' : '#ef4444'}}>
+                          {blockedUsers.includes(pendingBlockUser.id) ? 'نعم، إلغاء' : 'نعم، حظر'}
+                      </button>
+                      <button onClick={() => setPendingBlockUser(null)} className="gradient-btn" style={{flex: 1, background: '#374151', marginTop: 0, padding: '10px', fontSize: '14px'}}>
+                          تراجع
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
-  );
+  )
 }

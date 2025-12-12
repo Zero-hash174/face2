@@ -9,18 +9,22 @@ export const metadata: Metadata = {
   icons: { icon: '/favicon.ico' }
 }
 
-// 🟢 إعدادات العرض للهاتف (مهم جداً للشكل)
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // منع التكبير
-  themeColor: '#0f172a', // توحيد لون شريط المتصفح مع الخلفية
+  userScalable: false,
+  themeColor: '#111827',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl">
+    // ✅ 1. إضافة translate="no" هنا لمنع المتصفح من ترجمة الصفحة
+    <html lang="ar" dir="rtl" translate="no">
+      <head>
+        {/* ✅ 2. إضافة هذا السطر لمنع ظهور نافذة "هل تريد الترجمة" في كروم */}
+        <meta name="google" content="notranslate" />
+      </head>
       <body>
         {children}
       </body>

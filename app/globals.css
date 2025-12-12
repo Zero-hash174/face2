@@ -1,299 +1,331 @@
-/* استيراد الخط العربي الجميل Cairo */
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
 
 :root {
-  /* تعريف الألوان الرئيسية */
-  --primary: #4f46e5;       /* نيلي */
-  --primary-hover: #4338ca;
-  --bg-color: #f8fafc;      /* خلفية الصفحة */
-  --card-bg: #ffffff;       /* خلفية البطاقات */
-  --text-main: #1e293b;     /* النص الرئيسي */
-  --text-secondary: #64748b;/* النص الثانوي */
-  --success: #10b981;       /* أخضر النجاح */
-  --danger: #ef4444;        /* أحمر الخطر/الخروج */
-  --danger-hover: #dc2626;
+  --bg-dark: #111827;
+  --card-dark: #1f2937;
+  --text-light: #f3f4f6;
+  --text-dark: #1f2937;
+  --green-btn: #10b981;
+  --red-btn: #ef4444;
+  --blue-btn: #4f46e5;
+  --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #4b5563; }
 
 body {
   font-family: 'Cairo', sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-main);
+  background-color: var(--bg-dark); 
+  color: var(--text-light);
   direction: rtl;
   overflow-x: hidden;
-  /* تحسين السكرول للمتصفح بالكامل */
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #f1f5f9;
+  overflow-y: auto; 
+  margin: 0;
+  overscroll-behavior-y: contain;
+  touch-action: manipulation;
 }
 
-/* ----------------------------------------- */
-/* تعريف الحركات (Animations)      */
-/* ----------------------------------------- */
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes slideDown { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
-@keyframes pop {
-  0% { transform: scale(1); }
-  50% { transform: scale(0.95); }
-  100% { transform: scale(1); }
-}
-
-/* ----------------------------------------- */
-/* تنسيق العناصر (Components)    */
-/* ----------------------------------------- */
-
-.main-container { animation: fadeIn 0.8s ease-out; }
-
-.card {
-  background: var(--card-bg);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
-  padding: 24px;
-  transition: all 0.3s ease;
-  animation: slideUp 0.6s ease-out;
-}
-
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1);
-}
-
-.input-field {
-  width: 100%;
-  padding: 16px;
-  border: 2px solid #e2e8f0;
-  border-radius: 16px;
-  font-size: 16px;
-  font-family: 'Cairo', sans-serif;
-  outline: none;
-  transition: all 0.3s ease;
-  background-color: #f8fafc;
-}
-
-.input-field:focus {
-  border-color: var(--primary);
-  background-color: #fff;
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
-}
-
-/* الزر الأساسي (الأزرق) */
-.btn {
-  width: 100%;
-  padding: 16px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-  color: white;
-  border: none;
-  border-radius: 16px;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: 'Cairo', sans-serif;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
-}
-
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
-}
-
-.btn:active { animation: pop 0.2s ease-in-out; }
-
-.btn:disabled {
-  background: #9ca3af;
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
-}
-
-/* زر الخروج/الحذف (الأحمر) */
-.btn-danger {
-  width: 100%;
-  padding: 16px;
-  background: linear-gradient(135deg, var(--danger), var(--danger-hover));
-  color: white;
-  border: none;
-  border-radius: 16px;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: 'Cairo', sans-serif;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
-}
-
-.btn-danger:hover {
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
-}
-
-.btn-danger:active { animation: pop 0.2s ease-in-out; }
-
-/* نقطة الحالة */
-.status-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 0;
-}
-
-.online { background-color: var(--success); animation: pulse 2s infinite; }
-.offline { background-color: #cbd5e1; }
-
-/* النوافذ والإشعارات */
-.modal-overlay {
+/* =========================================
+   ✅ تصميم رسالة التنبيه الجديد (Glassmorphism)
+   ========================================= */
+.custom-notification-glass {
   position: fixed;
-  inset: 0;
-  z-index: 20000;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeIn 0.3s;
-}
-
-.modal-content {
-  max-width: 90%;
-  width: 400px;
-  text-align: center;
-  border: 1px solid #e0e7ff;
-  animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.toast-notification {
-  position: fixed;
-  top: 20px;
+  top: 25px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 24px;
-  border-radius: 50px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
   z-index: 10000;
-  font-weight: 600;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  animation: slideDown 0.5s ease-out;
-  min-width: 300px;
-  justify-content: center;
+  
+  /* الخلفية الزجاجية */
+  background: rgba(31, 41, 55, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  
+  /* الحدود والظلال */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 
+              0 0 0 1px rgba(255, 255, 255, 0.05);
+  
+  border-radius: 16px;
+  padding: 0; /* التباعد الداخلي يتم التحكم فيه في المحتوى */
+  min-width: 320px;
+  max-width: 90vw;
+  overflow: hidden; /* لقص شريط التقدم */
+  
+  animation: slideDownFade 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  direction: rtl;
 }
 
-/* ====================================================== */
-/* 🎨 تعديلات ZegoCloud الإجبارية (لإصلاح شكل الهاتف) 🎨 */
-/* ====================================================== */
-
-/* إخفاء العناصر المزعجة */
-.zego_toast { display: none !important; }
-.ZegoRoomMessage { display: none !important; }
-
-/* 1. إصلاح خلفية وأبعاد شاشة الاتصال */
-.ZegoUIKitPrebuilt-Call-Invitation-Page {
-    background: #0f172a !important; /* لون كحلي ليلي فخم */
-    background-image: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
-    height: 100vh !important;
-    height: 100dvh !important; /* ملء الشاشة وتجاهل شريط العنوان */
-    width: 100vw !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    z-index: 2147483647 !important; /* فوق كل شيء */
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
+.notify-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 16px;
+    position: relative;
+    z-index: 2;
 }
 
-/* 2. تكبير وتنسيق اسم المتصل */
-.ZegoUIKitPrebuilt-Call-Invitation-Page .invitee-name {
-    font-size: 32px !important;
-    font-weight: 900 !important;
-    color: #ffffff !important;
-    font-family: 'Cairo', sans-serif !important;
-    margin-top: 20px !important;
-    text-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+.notify-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    /* الألوان تأتي من الـ Inline Style في React */
 }
 
-/* 3. تنسيق نص الحالة (Incoming call) */
-.ZegoUIKitPrebuilt-Call-Invitation-Page .call-state-text {
-    color: #94a3b8 !important; /* لون رمادي فاتح */
-    font-size: 16px !important;
-    font-family: 'Cairo', sans-serif !important;
-    margin-top: 8px !important;
-    font-weight: 600 !important;
+.notify-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+    background: #374151;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
-/* 4. إصلاح أزرار الرد والرفض (التباعد والتمركز) */
-.ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container {
-    display: flex !important;
-    justify-content: space-between !important; /* تباعد بين الأزرار */
-    align-items: center !important;
-    width: 80% !important; /* عرض مناسب للشاشة */
-    max-width: 350px !important;
-    position: absolute !important;
-    bottom: 15% !important; /* رفع الأزرار بنسبة مئوية */
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    padding: 0 20px !important;
+.notify-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-/* 5. تكبير الأزرار نفسها */
-.ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container > div {
-    transform: scale(1.4) !important; /* تكبير 40% */
-    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+.notify-text {
+    flex: 1;
+    text-align: right;
 }
 
-/* تأثير عند الضغط على الأزرار */
-.ZegoUIKitPrebuilt-Call-Invitation-Page-Action-Container > div:active {
-    transform: scale(1.2) !important;
+.notify-text h4 {
+    font-size: 15px;
+    margin: 0 0 4px 0;
+    font-weight: 800;
+    letter-spacing: 0.3px;
 }
 
-/* ... (أكوادك القديمة) ... */
+.notify-text p {
+    font-size: 13px;
+    margin: 0;
+    color: #cbd5e1; /* لون نص فاتح قليلاً */
+    line-height: 1.4;
+}
 
-/* 🏳️ أنميشن رفرفة العلم */
-@keyframes waveFlag {
-  0% { transform: rotate(0deg) skewY(0deg); }
-  25% { transform: rotate(5deg) skewY(2deg); }
+/* شريط التقدم */
+.notify-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    width: 100%;
+    transform-origin: right;
+    animation: progress-bar 4s linear forwards;
+}
+
+/* حركات الدخول */
+@keyframes slideDownFade {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+}
+
+@keyframes progress-bar {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+
+/* =========================================
+   نهاية قسم التنبيهات
+   ========================================= */
+
+/* --- الهيكل الأساسي --- */
+.app-layout {
+  max-width: 600px; margin: 0 auto; min-height: 100vh;
+  display: flex; flex-direction: column; position: relative;
+  background-color: var(--bg-dark); box-shadow: 0 0 40px rgba(0,0,0,0.5);
+}
+
+/* --- علم السودان --- */
+.sudan-flag-css {
+  width: 50px; height: 34px; position: relative; display: inline-block;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4); cursor: pointer; border-radius: 4px; overflow: hidden;
+  background: linear-gradient(to bottom, #D21034 0%, #D21034 33.33%, #FFFFFF 33.33%, #FFFFFF 66.66%, #000000 66.66%, #000000 100%);
+  animation: flag-wave 3s ease-in-out infinite; transform-origin: left center;
+}
+.sudan-flag-css::before {
+  content: ''; position: absolute; top: 0; left: 0; width: 18px; height: 100%;
+  background-color: #007229; clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+@keyframes flag-wave {
+  0%, 100% { transform: rotate(0deg) skewY(0deg); }
+  25% { transform: rotate(2deg) skewY(1deg); }
   50% { transform: rotate(0deg) skewY(0deg); }
-  75% { transform: rotate(-5deg) skewY(-2deg); }
-  100% { transform: rotate(0deg) skewY(0deg); }
+  75% { transform: rotate(-2deg) skewY(-1deg); }
 }
 
-.flag-animation {
-  animation: waveFlag 3s infinite ease-in-out;
-  transform-origin: bottom left; /* نقطة الارتكاز كأنه مثبت في سارية */
+.text-gradient-name {
+  background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 800; display: inline-block;
 }
 
-/* ... (أكوادك السابقة) ... */
+/* --- مؤشر الشبكة --- */
+.network-indicator {
+  position: absolute; top: 20px; right: 20px; display: flex; align-items: flex-end; gap: 3px; z-index: 2000;
+  background: rgba(0,0,0,0.4); padding: 8px; border-radius: 10px; backdrop-filter: blur(4px);
+}
+.signal-bar { width: 4px; background-color: rgba(255, 255, 255, 0.3); border-radius: 2px; transition: all 0.3s ease; }
+.signal-bar:nth-child(1) { height: 6px; } .signal-bar:nth-child(2) { height: 10px; }
+.signal-bar:nth-child(3) { height: 14px; } .signal-bar:nth-child(4) { height: 18px; }
+.network-indicator.quality-4 .signal-bar:nth-child(-n+4) { background-color: #10b981; }
+.network-indicator.quality-3 .signal-bar:nth-child(-n+3) { background-color: #10b981; }
+.network-indicator.quality-2 .signal-bar:nth-child(-n+2) { background-color: #fbbf24; }
+.network-indicator.quality-1 .signal-bar:nth-child(-n+1) { background-color: #ef4444; }
 
-/* ❤️ أنميشن القلوب الطائرة */
-@keyframes floatUp {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  50% { opacity: 1; }
-  100% { transform: translateY(-200px) scale(1.5); opacity: 0; }
+/* --- الحاويات والفيديو --- */
+.video-fullscreen { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+.stream-container { position: absolute; transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); overflow: hidden; background: #000; }
+.stream-container.full { top: 0; left: 0; width: 100%; height: 100%; z-index: 1; border-radius: 0; border: none; box-shadow: none; }
+.stream-container.full video { width: 100%; height: 100%; object-fit: contain; }
+.stream-container.mini { top: 20px; left: 20px; width: 110px; height: 160px; z-index: 20; border-radius: 16px; border: 2px solid rgba(255, 255, 255, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.5); cursor: pointer; }
+.stream-container.mini video { width: 100%; height: 100%; object-fit: cover; }
+.stream-container.mini:active { transform: scale(0.95); }
+.controls-hidden { opacity: 0; transform: translateY(20px); pointer-events: none; }
+
+.call-controls-bar { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; padding: 12px 30px; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); border-radius: 50px; border: 1px solid rgba(255, 255, 255, 0.1); z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.3); transition: all 0.5s ease; }
+.call-controls-bar.controls-hidden { opacity: 0; transform: translateX(-50%) translateY(50px); }
+.control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; cursor: pointer; background: rgba(255, 255, 255, 0.15); transition: all 0.2s; position: relative; }
+.control-btn:active { transform: scale(0.9); }
+.btn-hangup-red { background: #ef4444; width: 65px; height: 65px; font-size: 28px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+
+@keyframes tumble-and-shy { 0% { transform: translate(-50%, -50%) scale(0) rotate(-180deg); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); opacity: 1; } }
+.monkey-anim { position: absolute; top: 50%; left: 50%; font-size: 100px; z-index: 60; animation: tumble-and-shy 1s ease-out forwards; filter: drop-shadow(0 0 20px rgba(0,0,0,0.5)); }
+
+@keyframes dust-message { 0% { opacity: 1; transform: scale(1); filter: blur(0px); } 50% { opacity: 0.5; transform: scale(1.1) translateX(10px); filter: blur(4px); color: transparent; text-shadow: 0 0 10px rgba(255,255,255,0.5); } 100% { opacity: 0; transform: scale(0.9) translateY(-20px); filter: blur(10px); } }
+.dissolve-dust .chat-messages-area { animation: dust-message 1.2s ease-out forwards; pointer-events: none; }
+@keyframes float-up { 0% { transform: translateY(0) scale(0.5); opacity: 0; } 10% { opacity: 1; transform: translateY(-10vh) scale(1); } 100% { transform: translateY(-100vh) scale(1.5); opacity: 0; } }
+.heart-anim { position: absolute; bottom: -50px; font-size: 50px; z-index: 1000; pointer-events: none; animation: float-up 4s linear forwards; filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.8)); }
+
+.calling-overlay-glass { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.95); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+.glass-card { background: #1f2937; border: 1px solid rgba(255, 255, 255, 0.1); padding: 40px; border-radius: 30px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); min-width: 300px; color: white; }
+.pulse-avatar-glow { width: 100px; height: 100px; background: #374151; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; border: 2px solid rgba(255,255,255,0.2); margin-bottom: 20px; animation: glow-pulse 2s infinite; }
+@keyframes glow-pulse { 0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.6); } 70% { box-shadow: 0 0 0 20px rgba(79, 70, 229, 0); } 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); } }
+.typing-indicator span { display: inline-block; width: 8px; height: 8px; background-color: #fff; border-radius: 50%; margin: 0 3px; animation: typing 1s infinite; }
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; } .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(-5px); opacity: 1; } }
+
+.btn-cancel-glass { margin-top: 30px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px 30px; border-radius: 20px; cursor: pointer; transition: 0.3s; }
+.btn-cancel-glass:hover { background: rgba(239, 68, 68, 0.8); border-color: transparent; }
+.caller-name-title { font-size: 28px; font-weight: 800; margin-bottom: 10px; }
+.calling-status-text { color: #9ca3af; font-size: 16px; margin-bottom: 30px; }
+.incoming-actions { display: flex; gap: 40px; }
+.btn-accept-pulse { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #4ade80 0%, #16a34a 100%); border: 4px solid rgba(255,255,255,0.2); color: white; font-size: 32px; cursor: pointer; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); animation: pulse-green 2s infinite; display: flex; align-items: center; justify-content: center; }
+
+/* زر الرفض الجديد (نابض وواضح) */
+.btn-reject-pulse { width: 80px; height: 80px; border-radius: 50%; background: #ef4444; border: 4px solid rgba(255,255,255,0.2); color: white; font-size: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); animation: pulse-red 1.5s infinite; }
+@keyframes pulse-red { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+@keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(74, 222, 128, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
+
+.chat-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; height: 500px; background: #1f2937; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; z-index: 3000; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: fadeIn 0.3s ease; }
+@media (max-width: 600px) { .chat-container { width: 95%; height: 80%; } }
+.chat-header { padding: 15px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; }
+.chat-messages-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.chat-message { max-width: 80%; padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.4; word-break: break-word; }
+.chat-message.me { align-self: flex-start; background: #4f46e5; color: white; border-bottom-right-radius: 2px; }
+.chat-message.other { align-self: flex-end; background: #374151; color: #f3f4f6; border-bottom-left-radius: 2px; }
+.chat-input-area { padding: 10px; background: rgba(0,0,0,0.2); display: flex; gap: 10px; }
+.chat-input-area input { flex: 1; background: #374151; border: none; border-radius: 20px; padding: 8px 15px; color: white; font-family: 'Cairo'; }
+.chat-input-area button { background: #4f46e5; border: none; width: 35px; height: 35px; border-radius: 50%; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+.modal-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; }
+.modern-modal { background: #1e293b; width: 90%; max-width: 350px; padding: 25px; border-radius: 24px; text-align: center; border: 1px solid rgba(255,255,255,0.1); color: white; transition: all 0.3s ease; }
+.history-modal-card { background-color: #1f2937; width: 90%; max-width: 400px; max-height: 80vh; border-radius: 24px; padding: 25px; border: 1px solid rgba(255,255,255,0.1); color: white; display: flex; flex-direction: column; margin: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+.history-title { margin-bottom: 20px; flex-shrink: 0; }
+.history-list-container { flex: 1; overflow-y: auto; margin-bottom: 15px; padding-left: 5px; scrollbar-width: thin; scrollbar-color: #4b5563 #1f2937; }
+.history-item { background-color: #111827; padding: 15px; border-radius: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #374151; }
+.history-info-right { text-align: right; }
+.h-name { font-weight: bold; font-size: 14px; color: white; display: block; }
+.h-status-row { display: flex; align-items: center; font-size: 11px; margin-top: 4px; font-weight: bold; gap: 8px; }
+.h-time { text-align: left; font-size: 12px; color: #6b7280; direction: ltr; }
+.history-actions-row { display: flex; gap: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; flex-shrink: 0; }
+.btn-modal-clear { flex: 1; background: #ef4444; color: white; padding: 12px; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; }
+.btn-modal-close { flex: 1; background: #4f46e5; color: white; padding: 12px; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; }
+
+/* تحسينات الهواتف للقائمة */
+.user-card-row { background: #1f2937; margin: 0 20px 12px 20px; padding: 10px 15px; border-radius: 25px; display: flex; justify-content: space-between; align-items: center; height: 80px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); gap: 10px; border: 1px solid rgba(255,255,255,0.05); }
+@media (max-width: 600px) {
+  .user-card-row { margin: 0 5px 8px 5px; padding: 8px 10px; border-radius: 18px; height: 70px; }
+  .btn-call-modern, .btn-action-circle, .btn-block-icon { width: 36px !important; height: 36px !important; font-size: 16px !important; }
+  .user-avatar-circle { width: 40px !important; height: 40px !important; font-size: 20px !important; }
+  .action-buttons-row { gap: 6px !important; }
+  .user-name { font-size: 14px !important; }
 }
 
-.floating-heart {
-  position: absolute;
-  bottom: 100px; /* تبدأ من فوق الأزرار */
-  right: 30px;   /* تظهر على الجانب */
-  font-size: 30px;
-  pointer-events: none; /* عشان ما تمنع اللمس */
-  animation: floatUp 2s ease-out forwards;
-  z-index: 2147483647; /* تظهر فوق كل شيء */
-}
+.user-info-right { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.user-details { text-align: right; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.user-name { color: #f9fafb; font-weight: 800; font-size: 16px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-avatar-circle { width: 48px; height: 48px; background: #374151; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; border: 1px solid #4b5563; position: relative; flex-shrink: 0; cursor: pointer; }
+
+.status-dot-on-avatar { position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #1f2937; }
+.action-buttons-row { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.btn-call-modern, .btn-action-circle, .btn-block-icon { width: 42px !important; height: 42px !important; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; font-size: 20px; flex-shrink: 0; }
+.btn-call-modern { color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+.btn-call-modern.online { background: linear-gradient(135deg, #34d399 0%, #059669 100%); box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); }
+.btn-call-modern.busy { background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%); box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); }
+.btn-call-modern.offline { background: #4b5563; box-shadow: none; opacity: 0.8; }
+.btn-call-modern:hover { transform: translateY(-3px) scale(1.05); }
+.btn-call-modern:active { transform: scale(0.95); }
+.btn-call-modern:disabled { background: #374151; box-shadow: none; cursor: not-allowed; opacity: 0.5; }
+.btn-action-circle { color: white; }
+.btn-action-circle:active { transform: scale(0.95); }
+.chat-btn { background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3); position: relative; }
+.btn-block-icon { background: transparent; font-size: 24px; opacity: 0.6; color: #374151; }
+.btn-block-icon:hover { background: rgba(0,0,0,0.05); opacity: 1; }
+
+.unread-dot { position: absolute; top: 3px; right: 3px; width: 13px; height: 13px; background-color: #fbbf24; border-radius: 50%; border: 2px solid #4f46e5; box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); animation: pulse-yellow-dot 2s infinite; z-index: 100; }
+@keyframes pulse-yellow-dot { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); } }
+
+.gradient-btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 15px; color: white; font-weight: bold; cursor: pointer; margin-top: 10px; }
+.loader-spin { display: inline-block; animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.header-container { display: flex; justify-content: space-between; align-items: flex-start; padding: 20px; width: 100%; position: relative; z-index: 50; }
+.header-right-col { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.header-left-col { display: flex; flex-direction: column; align-items: flex-end; gap: 15px; }
+.header-buttons-row { display: flex; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
+.profile-box { width: 55px; height: 55px; background: white; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+.btn-pill-red { background: var(--red-btn); color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.3); }
+.btn-circle-blue { width: 30px; height: 30px; background: var(--blue-btn); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; font-size: 18px; box-shadow: 0 2px 5px rgba(79, 70, 229, 0.3); }
+.status-container { display: flex; flex-direction: column; align-items: flex-end; }
+.status-label { font-size: 10px; color: #9ca3af; margin-bottom: 2px; }
+.status-badge { background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #10b981; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+.status-badge.busy { background: rgba(239, 68, 68, 0.2); color: #ef4444; border-color: #ef4444; }
+.greeting-area { text-align: right; padding: 10px 25px; margin-bottom: 10px; }
+.greeting-title { font-size: 26px; font-weight: 800; margin-bottom: 5px; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.greeting-sub { color: #9ca3af; font-size: 14px; font-weight: 600; }
+.search-wrapper { margin: 0 20px 20px 20px; position: relative; }
+.search-input { width: 100%; padding: 15px 20px 15px 50px; border-radius: 18px; border: none; text-align: right; font-family: 'Cairo'; font-size: 14px; color: #333; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+.upload-progress-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(255,255,255,0.2); }
+.upload-progress-bar { height: 100%; background: #10b981; transition: width 0.2s ease; }
+.lightbox-overlay { position: fixed; inset: 0; z-index: 5000; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; animation: fadeIn 0.3s ease; }
+.lightbox-img { max-width: 95%; max-height: 80vh; object-fit: contain; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+.lightbox-actions { margin-top: 20px; display: flex; gap: 20px; }
+.btn-download { background: #4f46e5; color: white; padding: 10px 20px; border-radius: 30px; text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 8px; transition: transform 0.2s; }
+.btn-download:active { transform: scale(0.95); }
+.btn-close-lightbox { background: #374151; color: white; padding: 10px 20px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; }
+.chat-image-bubble { max-width: 100%; height: auto; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: block; cursor: pointer; }

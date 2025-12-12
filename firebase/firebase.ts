@@ -1,6 +1,7 @@
 // firebase/firebase.ts
 import { initializeApp } from "firebase/app"
 import { getDatabase } from "firebase/database"
+import { getStorage } from "firebase/storage" // ✅ إضافة خدمة التخزين
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,8 +11,9 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-  databaseURL: "https://call-9fd61-default-rtdb.firebaseio.com"
+  databaseURL: "https://call-9fd61-default-rtdb.firebaseio.com" // تأكد أن هذا الرابط صحيح لحسابك
 }
 
 const app = initializeApp(firebaseConfig)
 export const db = getDatabase(app)
+export const storage = getStorage(app) // ✅ تصدير الخدمة
