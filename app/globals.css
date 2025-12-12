@@ -51,10 +51,10 @@ body {
               0 0 0 1px rgba(255, 255, 255, 0.05);
   
   border-radius: 16px;
-  padding: 0; /* التباعد الداخلي يتم التحكم فيه في المحتوى */
+  padding: 0;
   min-width: 320px;
   max-width: 90vw;
-  overflow: hidden; /* لقص شريط التقدم */
+  overflow: hidden;
   
   animation: slideDownFade 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   direction: rtl;
@@ -78,7 +78,6 @@ body {
     justify-content: center;
     font-size: 22px;
     flex-shrink: 0;
-    /* الألوان تأتي من الـ Inline Style في React */
 }
 
 .notify-avatar {
@@ -117,7 +116,7 @@ body {
 .notify-text p {
     font-size: 13px;
     margin: 0;
-    color: #cbd5e1; /* لون نص فاتح قليلاً */
+    color: #cbd5e1;
     line-height: 1.4;
 }
 
@@ -211,6 +210,14 @@ body {
 .control-btn { width: 55px; height: 55px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; cursor: pointer; background: rgba(255, 255, 255, 0.15); transition: all 0.2s; position: relative; }
 .control-btn:active { transform: scale(0.9); }
 .btn-hangup-red { background: #ef4444; width: 65px; height: 65px; font-size: 28px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+
+/* --- الأنيميشن (Animations) --- */
+
+/* ✅ إضافة حركة ظهور كبسولة التفاعلات */
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.5) translateY(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
 
 @keyframes tumble-and-shy { 0% { transform: translate(-50%, -50%) scale(0) rotate(-180deg); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); opacity: 1; } }
 .monkey-anim { position: absolute; top: 50%; left: 50%; font-size: 100px; z-index: 60; animation: tumble-and-shy 1s ease-out forwards; filter: drop-shadow(0 0 20px rgba(0,0,0,0.5)); }

@@ -11,6 +11,9 @@ import QRCode from 'react-qr-code'
 const CLOUD_NAME = "dofsnaled"; 
 const UPLOAD_PRESET = "face22"; 
 
+// --- قائمة التفاعلات المتاحة ---
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '😡'];
+
 // --- الأيقونات ---
 const Icons = {
   MicOn: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg> ),
@@ -42,10 +45,11 @@ const Icons = {
   Hand: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg> ),
   Download: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> ),
   PiP: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" ry="2"></rect><rect x="12" y="10" width="8" height="6" rx="1"></rect></svg> ),
-  Bell: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> ),
-  Settings: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg> ),
-  VideoQuality: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20"></path><path d="M2 5h20"></path><path d="M2 19h20"></path><circle cx="12" cy="12" r="3"></circle></svg> ),
-  ScreenShare: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg> )
+  ScreenShare: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg> ),
+  Sticker: () => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg> ),
+  Trash: () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> ),
+  Copy: () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> ),
+  Keyboard: () => ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="6" y1="16" x2="18" y2="16"></line></svg> )
 };
 
 const servers = {
@@ -63,7 +67,17 @@ const servers = {
 const ROMANTIC_EMOJIS = ['🙈', '🥰', '💍', '🦋', '🧸', '🌹', '😽', '🔥', '🍫', '💌', '💟', '✨', '🍯', '🥺'];
 
 interface CallLog { id: string; name: string; avatar: string; time: string; type: 'incoming' | 'outgoing' | 'missed' | 'rejected' | 'canceled'; duration?: string; }
-interface ChatMessage { id: string; senderId: string; text: string; timestamp: number; seen?: boolean; type?: 'text' | 'image' | 'audio'; }
+
+interface ChatMessage { 
+  id: string; 
+  senderId: string; 
+  text: string; 
+  timestamp: number; 
+  seen?: boolean; 
+  type?: 'text' | 'image' | 'audio' | 'sticker'; 
+  reactions?: { [emoji: string]: { [userId: string]: boolean } }; 
+}
+
 interface PendingMessage { type: 'image' | 'audio'; content: string; }
 
 export default function CallClient() {
@@ -78,7 +92,6 @@ export default function CallClient() {
   const [incomingCallInfo, setIncomingCallInfo] = useState<any>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   
-  // ✅ 1. حالة الجودة ومشاركة الشاشة
   const [videoQuality, setVideoQuality] = useState<'low' | 'medium' | 'high'>('low');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
@@ -123,15 +136,16 @@ export default function CallClient() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [pendingMsg, setPendingMsg] = useState<PendingMessage | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [activeOptionsMsgId, setActiveOptionsMsgId] = useState<string | null>(null); 
 
-  // --- XO Game States ---
   const [showGameModal, setShowGameModal] = useState(false);
   const [gameBoard, setGameBoard] = useState(Array(9).fill(null));
   const [isXNext, setIsXNext] = useState(true);
   const [gameWinner, setGameWinner] = useState<string | null>(null);
   const [myGameRole, setMyGameRole] = useState<'X' | 'O' | null>(null);
 
-  // --- Voice Changer & Tools Menu States ---
   const [voiceEffect, setVoiceEffect] = useState<'normal' | 'squeaky' | 'monster'>('normal');
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showToolsMenu, setShowToolsMenu] = useState(false); 
@@ -160,7 +174,6 @@ export default function CallClient() {
   const previousUnreadCountsRef = useRef<{[key: string]: number}>({});
   const serviceWorkerReg = useRef<ServiceWorkerRegistration | null>(null);
   
-  // ✅ مرجع لحفظ بيانات "الطرف الآخر" (سواء كنت أنا المتصل أو المستقبل)
   const outgoingCallInfoRef = useRef<{name: string, avatar: string} | null>(null);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -170,6 +183,9 @@ export default function CallClient() {
   const currentPeerId = useRef<string | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  // Ref for Long Press
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const activeCallUnsubscribeRef = useRef<(() => void) | null>(null);
   const answerCandidatesUnsubscribeRef = useRef<(() => void) | null>(null);
@@ -222,12 +238,10 @@ export default function CallClient() {
       return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  // ✅ دالة إرسال الإشعارات المتوافقة مع PWA
   const sendSystemNotification = async (title: string, body: string, icon: string = 'https://face2-three.vercel.app/icon.png') => {
       if (!("Notification" in window)) return;
 
       if (Notification.permission === "granted") {
-          // A. المحاولة عبر Service Worker (الطريقة الأفضل للـ PWA وأندرويد)
           if ('serviceWorker' in navigator) {
               try {
                   const registration = await navigator.serviceWorker.ready;
@@ -247,22 +261,10 @@ export default function CallClient() {
               }
           }
 
-          // B. الخطة البديلة
           try {
               new Notification(title, { body: body, icon: icon });
           } catch (e) { console.error("Notification failed completely", e); }
       }
-  };
-
-  const requestNotificationPermission = () => {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        showToast("✅ تم تفعيل الإشعارات!", "تنبيه", "success");
-        sendSystemNotification("Face2", "تجربة الإشعارات بنجاح!");
-      } else {
-        showToast("❌ تم رفض الإذن", "تنبيه", "error");
-      }
-    });
   };
 
   useEffect(() => {
@@ -367,7 +369,6 @@ export default function CallClient() {
       setIsVideoPaused(false);
   };
 
-  // --- Voice Changer Logic ---
   const applyVoiceEffect = async (effect: 'normal' | 'squeaky' | 'monster') => {
     if (!localStreamRef.current || !pc.current) return;
     setVoiceEffect(effect);
@@ -487,7 +488,6 @@ export default function CallClient() {
       setShowToolsMenu(false);
   };
 
-  // ✅ 2. مشاركة الشاشة (مع إصلاح الأندرويد)
   const toggleScreenShare = async () => {
     if (isScreenSharing) {
       stopScreenShare();
@@ -500,7 +500,6 @@ export default function CallClient() {
     }
 
     try {
-      // استخدام إعدادات بسيطة لدعم الأندرويد
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true, 
         audio: false 
@@ -555,7 +554,6 @@ export default function CallClient() {
     setIsScreenSharing(false);
   };
 
-  // --- XO Game Logic ---
   const checkWinner = (squares: any[]) => {
     const lines = [
       [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -654,7 +652,6 @@ export default function CallClient() {
     }, 2000);
   };
 
-  // ✅ 3. وظيفة تغيير الجودة (جديدة ومحسنة)
   const changeVideoQuality = async () => {
       if(!localStreamRef.current) return;
       const nextQuality = videoQuality === 'low' ? 'medium' : videoQuality === 'medium' ? 'high' : 'low';
@@ -669,16 +666,14 @@ export default function CallClient() {
           }
       }
       showToast(`تم تغيير الجودة إلى: ${nextQuality === 'low' ? 'منخفضة (توفير)' : nextQuality === 'medium' ? 'متوسطة' : 'عالية (HD)'}`, "الجودة", "success");
-      setShowToolsMenu(false); // إغلاق القائمة بعد الاختيار
+      setShowToolsMenu(false); 
   };
 
-  // ✅ 4. تحديث startWebcam لدعم الجودة المتغيرة
   const startWebcam = async (type: 'video' | 'audio' = 'video', mode: 'user' | 'environment' = 'user', quality: 'low'|'medium'|'high' = videoQuality) => {
     try {
         stopLocalMedia();
         let width, height, fps;
         
-        // إعدادات الدقة لتقليل استهلاك البيانات
         if (quality === 'low') { width = 320; height = 240; fps = 15; }
         else if (quality === 'medium') { width = 640; height = 480; fps = 24; }
         else { width = 1280; height = 720; fps = 30; }
@@ -704,35 +699,27 @@ export default function CallClient() {
     } catch (err) { alert("لا يمكن الوصول للكاميرا/الميكروفون."); return null; }
   };
 
-  // ✅ 5. تحديث hangUp لتسجيل جميع الحالات (الرفض، الإلغاء، النجاح)
   const hangUp = async () => {
       const targetId = callingTargetId || currentPeerId.current;
       
-      // منطق السجل الشامل
       let durationStr = '';
       let logType: 'outgoing' | 'incoming' | 'rejected' | 'canceled' = 'outgoing';
 
-      // 1. حالة مكالمة ناجحة انتهت
       if (startTime) {
           const durationMs = Date.now() - startTime;
           durationStr = formatDuration(durationMs);
-          // إذا كان لدي callingTargetId فأنا المتصل، وإلا فأنا المستقبل
           logType = callingTargetId ? 'outgoing' : 'incoming';
       } else {
-          // 2. حالة مكالمة لم تبدأ (رفض أو إلغاء)
           if (callStatusRef.current === 'INCOMING') {
-              // أنا المستقبل وقمت بالضغط على زر الرفض الأحمر
               durationStr = 'مكالمة واردة (مرفوضة) 🚫';
               logType = 'rejected';
           } else if (callStatusRef.current === 'CALLING') {
-              // أنا المتصل وقمت بالضغط على زر الإلغاء
               durationStr = 'تم الإلغاء 🚫';
               logType = 'canceled';
           }
       }
 
-      // حفظ السجل إذا كانت هناك بيانات
-      const infoToLog = outgoingCallInfoRef.current || incomingCallInfo; // نستخدم أي معلومات متاحة
+      const infoToLog = outgoingCallInfoRef.current || incomingCallInfo; 
       
       if (infoToLog && infoToLog.name) {
           const log: CallLog = {
@@ -751,16 +738,13 @@ export default function CallClient() {
           });
       }
       
-      // تفريغ المراجع
       outgoingCallInfoRef.current = null;
 
-      // 2. تنظيف المؤقتات والاشتراكات
       if (qualityIntervalRef.current) clearInterval(qualityIntervalRef.current);
       if (activeCallUnsubscribeRef.current) { activeCallUnsubscribeRef.current(); activeCallUnsubscribeRef.current = null; }
       if (answerCandidatesUnsubscribeRef.current) { answerCandidatesUnsubscribeRef.current(); answerCandidatesUnsubscribeRef.current = null; }
       if (dialingTimeoutRef.current) clearTimeout(dialingTimeoutRef.current);
 
-      // 3. إيقاف الميديا
       stopLocalMedia();
       setRemoteStream(null); 
       if (remoteVideoRef.current) { remoteVideoRef.current.srcObject = null; remoteVideoRef.current.load(); }
@@ -769,26 +753,21 @@ export default function CallClient() {
       try { if (dataChannel.current?.readyState === 'open') dataChannel.current.send('BYE'); } catch(e){}
       if (pc.current) { pc.current.close(); pc.current = null; }
 
-      // 4. تحديث الواجهة محلياً
       setCallStatus('IDLE');
       setIncomingCallInfo(null);
       setCallingTargetId(null);
       setStartTime(null);
       currentPeerId.current = null;
       
-      // إخفاء النوافذ الأخرى
       setShowGameModal(false);
       setMyGameRole(null);
       setShowVoiceModal(false);
       setShowToolsMenu(false);
       clearAllNotifications(); 
-      setIsScreenSharing(false); // ✅ إيقاف حالة المشاركة
+      setIsScreenSharing(false);
 
-      // 5. التعامل مع قاعدة البيانات
       if (targetId) {
             const targetRef = ref(db, `calls/${targetId}`);
-            // إذا كنت أنا المستقبل (INCOMING) وضغطت رفض، أرسل rejected_declined
-            // إذا كنت أنا المتصل (CALLING) وضغطت إلغاء، أرسل canceled
             if (callStatusRef.current === 'INCOMING') {
                  await update(targetRef, { status: 'rejected_declined' });
             } else {
@@ -862,7 +841,6 @@ export default function CallClient() {
                   remoteAudioRef.current.srcObject = e.streams[0];
                   remoteAudioRef.current.play().catch(e => console.log("Audio play error:", e));
                   
-                  // ✅ تعيين وقت البدء عند وصول الوسائط (للرد)
                   if (!isCaller && !startTime) {
                       setStartTime(Date.now());
                   }
@@ -879,7 +857,6 @@ export default function CallClient() {
       
       connection.oniceconnectionstatechange = () => { 
           if (['failed', 'disconnected', 'closed'].includes(connection.iceConnectionState)) { 
-             // مراقبة الاتصال دون قطع فوري
           } 
       }; 
       return connection; 
@@ -900,6 +877,8 @@ export default function CallClient() {
       setPendingMsg(null);
       stopMicrophone();
       setIsRecording(false);
+      setShowStickerPicker(false);
+      setActiveOptionsMsgId(null); 
       if (activeChatTarget && myId) { 
           const chatId = getChatId(myId, activeChatTarget.id); 
           remove(ref(db, `chats/${chatId}`)); 
@@ -914,7 +893,77 @@ export default function CallClient() {
       } 
   };
   
-  const sendMessage = async (text: string, type: 'text' | 'image' | 'audio' = 'text') => { if (!activeChatTarget) return; const chatId = getChatId(myId, activeChatTarget.id); await push(ref(db, `chats/${chatId}`), { text, senderId: myId, timestamp: Date.now(), seen: false, type }); setChatInput(''); };
+  const sendMessage = async (text: string, type: 'text' | 'image' | 'audio' | 'sticker' = 'text') => { if (!activeChatTarget) return; const chatId = getChatId(myId, activeChatTarget.id); await push(ref(db, `chats/${chatId}`), { text, senderId: myId, timestamp: Date.now(), seen: false, type }); setChatInput(''); };
+
+  const handleSendSticker = async (index: number) => {
+    const stickerPath = `/stickers/s${index}.webp`;
+    await sendMessage(stickerPath, 'sticker');
+    setShowStickerPicker(false);
+  };
+
+  // ✅ دالة إضافة أو تبديل التفاعل (واحد فقط لكل مستخدم)
+  const toggleReaction = async (msgId: string, emoji: string) => {
+    if (!activeChatTarget) return;
+    
+    // العثور على الرسالة الحالية لمعرفة التفاعلات السابقة
+    const currentMsg = chatMessages.find(m => m.id === msgId);
+    if (!currentMsg) return;
+
+    const chatId = getChatId(myId, activeChatTarget.id);
+    const updates: any = {};
+    const basePath = `chats/${chatId}/${msgId}/reactions`;
+
+    // 1. حذف أي تفاعل سابق للمستخدم (مهما كان نوع الإيموجي)
+    if (currentMsg.reactions) {
+        Object.keys(currentMsg.reactions).forEach((reactEmoji) => {
+            if (currentMsg.reactions?.[reactEmoji]?.[myId]) {
+                updates[`${basePath}/${reactEmoji}/${myId}`] = null;
+            }
+        });
+    }
+
+    // 2. إذا لم يكن المستخدم يضغط على نفس الإيموجي لحذفه، قم بإضافة الجديد
+    const isSameReaction = currentMsg.reactions?.[emoji]?.[myId];
+    if (!isSameReaction) {
+        updates[`${basePath}/${emoji}/${myId}`] = true;
+    }
+
+    // تنفيذ التحديثات مرة واحدة (Atomic update)
+    await update(ref(db), updates);
+
+    setActiveOptionsMsgId(null); 
+  };
+
+  // ✅ دالة حذف الرسالة
+  const handleDeleteMessage = (msgId: string) => {
+      if (!activeChatTarget) return;
+      const chatId = getChatId(myId, activeChatTarget.id);
+      remove(ref(db, `chats/${chatId}/${msgId}`));
+      setActiveOptionsMsgId(null);
+      showToast("🗑️ تم حذف الرسالة", "نجاح", "success");
+  };
+
+  // ✅ دالة نسخ الرسالة
+  const handleCopyMessage = (text: string) => {
+      navigator.clipboard.writeText(text);
+      setActiveOptionsMsgId(null);
+      showToast("📋 تم نسخ النص", "نجاح", "success");
+  };
+
+  // ✅ التعامل مع الضغط المطول
+  const handleTouchStart = (msgId: string) => {
+      longPressTimerRef.current = setTimeout(() => {
+          setActiveOptionsMsgId(msgId);
+          if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
+      }, 500); // 500ms long press
+  };
+
+  const handleTouchEnd = () => {
+      if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+      }
+  };
 
   const uploadToCloudinary = (file: Blob, type: 'image' | 'video' | 'raw' | 'auto'): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -1016,38 +1065,30 @@ export default function CallClient() {
   const handleLogoutRequest = () => { setShowLogoutWarning(true); };
   
   const confirmLogout = async () => {
-      // 1. إيقاف الكاميرا والمايك
       stopLocalMedia();
 
       if(myId) { 
           const userRef = ref(db, `users/${myId}`);
-          
           try {
-              // أ: إلغاء أي عمليات معلقة عند قطع الاتصال (لتجنب الكتابة مرة أخرى)
               await onDisconnect(userRef).cancel();
-              
-              // ب: حذف الحساب نهائياً من قائمة المتصلين
               await remove(userRef);
           } catch (error) {
               console.error("Error removing user:", error);
           }
       }
 
-      // 2. تنظيف البيانات المحلية
-      localStorage.removeItem('face2_userId'); // يفضل حذف الـ ID أيضاً لضمان دخول جديد نظيف
+      localStorage.removeItem('face2_userId');
       localStorage.removeItem('face2_username');
       localStorage.removeItem('face2_avatar');
       localStorage.removeItem('face2_history');
       localStorage.removeItem('face2_recents');
       
-      // 3. التوجيه لصفحة البداية
       window.location.href = '/setup'; 
   };
 
   const startCall = async (targetUser: any, type: 'video' | 'audio') => { 
     if (callStatusRef.current !== 'IDLE') return;
 
-    // ✅ حفظ بيانات الشخص الذي نتصل به
     outgoingCallInfoRef.current = { name: targetUser.username, avatar: targetUser.avatar };
 
     setCallingTargetId(targetUser.id); 
@@ -1062,7 +1103,6 @@ export default function CallClient() {
     
     const callRequestRef = ref(db, `calls/${targetUser.id}`);
 
-    // ✅ الحذف التلقائي إذا انقطع النت
     onDisconnect(callRequestRef).remove();
 
     await set(callRequestRef, { 
@@ -1071,7 +1111,7 @@ export default function CallClient() {
         callerName: currentName, 
         callerAvatar: currentAvatar, 
         callType: type,
-        timestamp: serverTimestamp() // ✅ توقيت السيرفر
+        timestamp: serverTimestamp() 
     });
     
     if (dialingTimeoutRef.current) clearTimeout(dialingTimeoutRef.current); 
@@ -1096,8 +1136,6 @@ export default function CallClient() {
             currentPeerId.current = targetUser.id; 
             setIncomingCallInfo({ callerName: targetUser.username, callerAvatar: targetUser.avatar }); 
             
-            // ❌ تم حذف إشعار "اتصال وارد" هنا لإصلاح المشكلة ❌
-
             const stream = await startWebcam(type); 
             if (!stream) { hangUp(); return; } 
             
@@ -1132,7 +1170,6 @@ export default function CallClient() {
                 try { 
                     await pc.current.setRemoteDescription(new RTCSessionDescription(data.answer)); 
                     setCallStatus('CONNECTED'); 
-                    // ✅ بدء حساب الوقت للمتصل
                     setStartTime(Date.now());
                     
                     addToRecents(targetUser.id);
@@ -1228,7 +1265,6 @@ export default function CallClient() {
       return () => unsubscribe(); 
   }, [myId]);
 
-  // ✅ الـ useEffect الرئيسي لاستقبال الحالات (معدل)
   useEffect(() => { 
       if (!myId) return; 
       const callRef = ref(db, `calls/${myId}`); 
@@ -1242,7 +1278,6 @@ export default function CallClient() {
               return; 
           } 
           
-          // ✅ 1. حالة الرفض الصريح (Rejected)
           if (data.status === 'rejected_declined') {
               if (callStatusRef.current === 'CALLING') {
                   showToast("قام الطرف الآخر برفض المكالمة 📵", "تم الرفض", "error", data.callerAvatar);
@@ -1264,7 +1299,6 @@ export default function CallClient() {
               return;
           }
 
-          // ✅ 2. حالة الإلغاء (Canceled)
           if (data.status === 'canceled') {
               if (callStatusRef.current === 'INCOMING') {
                   showToast("تراجع المتصل عن المكالمة قبل الرد.", "مكالمة فائتة 📵", "error", data.callerAvatar);
@@ -1279,10 +1313,9 @@ export default function CallClient() {
           }
 
           if (data.status === 'dialing') { 
-              // ✅ التحقق من صلاحية المكالمة (Anti-Ghost Check)
               const callTime = data.timestamp || Date.now();
               const timeDiff = Date.now() - callTime;
-              if (timeDiff > 60000) { // دقيقة واحدة
+              if (timeDiff > 60000) { 
                   remove(ref(db, `calls/${myId}`));
                   return;
               }
@@ -1299,7 +1332,6 @@ export default function CallClient() {
               } 
               update(callRef, { status: 'ringing' }); 
               
-              // ✅ حفظ بيانات المتصل
               outgoingCallInfoRef.current = { name: data.callerName, avatar: data.callerAvatar };
 
               showToast(`يتصل بك الآن...`, `📞 ${data.callerName}`, "info", data.callerAvatar);
@@ -1363,6 +1395,18 @@ export default function CallClient() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: themeColors.bg, color: themeColors.text, transition: 'all 0.3s ease' }}>
       
+      {/* 🔹 هذا الستايل ضروري لعمل أنيميشن ظهور قائمة التفاعلات */}
+      <style>{`
+          @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.5) translateY(10px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+          }
+          .no-select {
+              user-select: none;
+              -webkit-user-select: none;
+          }
+      `}</style>
+
       {customNotify && (
             <div className="custom-notification-glass" style={{
                 borderRight: `5px solid ${customNotify.type === 'error' ? '#ef4444' : customNotify.type === 'success' ? '#10b981' : '#3b82f6'}`
@@ -1393,6 +1437,7 @@ export default function CallClient() {
             </div>
       )}
 
+      {/* --- باقي محتويات الفيديو والـ CallUI (بدون تغيير) --- */}
       <div className="video-fullscreen" style={{ visibility: (callStatus === 'CONNECTED' || callStatus === 'CALLING') ? 'visible' : 'hidden', opacity: (callStatus === 'CONNECTED' || callStatus === 'CALLING') ? 1 : 0 }} onClick={resetControlsVisibility}>
             <div className={`network-indicator quality-${netQuality}`} style={{opacity: callStatus === 'CONNECTED' ? 1 : 0}}><div className="signal-bar"></div> <div className="signal-bar"></div> <div className="signal-bar"></div> <div className="signal-bar"></div></div>
             
@@ -1446,7 +1491,6 @@ export default function CallClient() {
                             border: '1px solid rgba(255,255,255,0.1)',
                             minWidth: '180px'
                         }}>
-                            {/* زر الألعاب */}
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setShowGameModal(true); setShowToolsMenu(false); }}
                                 style={{
@@ -1459,7 +1503,6 @@ export default function CallClient() {
                                 <span style={{fontSize: '14px', fontWeight: 'bold'}}>ألعاب (XO)</span>
                             </button>
 
-                            {/* زر مشاركة الشاشة */}
                             {callType === 'video' && (
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); toggleScreenShare(); }}
@@ -1476,7 +1519,6 @@ export default function CallClient() {
                                 </button>
                             )}
 
-                            {/* زر تغيير الصوت */}
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setShowVoiceModal(!showVoiceModal); }}
                                 style={{
@@ -1492,7 +1534,6 @@ export default function CallClient() {
                                 <span style={{fontSize: '14px', fontWeight: 'bold'}}>تغيير الصوت</span>
                             </button>
 
-                            {/* زر الجودة */}
                             {callType === 'video' && (
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); changeVideoQuality(); }}
@@ -1514,7 +1555,6 @@ export default function CallClient() {
                                 </button>
                             )}
 
-                            {/* زر قفل الشاشة */}
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setIsScreenLocked(true); setShowToolsMenu(false); }}
                                 style={{
@@ -1527,7 +1567,6 @@ export default function CallClient() {
                                 <span style={{fontSize: '14px', fontWeight: 'bold'}}>قفل الشاشة</span>
                             </button>
 
-                            {/* زر PiP */}
                             <button 
                                 onClick={(e) => { e.stopPropagation(); togglePiP(); }}
                                 style={{
@@ -1693,6 +1732,15 @@ export default function CallClient() {
 
       {activeChatTarget && (
           <div className={`chat-container ${isDissolving ? 'dissolve-dust' : ''}`}>
+              
+              {/* ✅ طبقة شفافة لإغلاق قائمة الخيارات عند الضغط خارج الرسالة */}
+              {activeOptionsMsgId && (
+                  <div 
+                    style={{position: 'fixed', inset: 0, zIndex: 19, background: 'rgba(0,0,0,0.1)'}} 
+                    onClick={() => setActiveOptionsMsgId(null)}
+                  />
+              )}
+
               <div className="chat-header">
                   <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
                       <button onClick={handleCloseChatRequest} style={{background: 'none', border: 'none', color: 'white', cursor: 'pointer'}}><Icons.Back /></button>
@@ -1704,42 +1752,202 @@ export default function CallClient() {
               
               <div className="chat-messages-area">
                   {chatMessages.length === 0 && ( <div style={{textAlign: 'center', color: '#6b7280', marginTop: '50px'}}><div style={{fontSize: '30px', marginBottom: '10px'}}>👋</div><p style={{fontSize:'12px'}}>ابدأ المحادثة الآن</p></div> )}
-                  {chatMessages.map(msg => ( 
-                      <div key={msg.id} className={`chat-message ${msg.senderId === myId ? 'me' : 'other'}`}>
-                          {msg.type === 'image' ? (
-                              <div style={{position:'relative'}}>
-                                  <img 
-                                    src={msg.text} 
-                                    alt="Sent" 
-                                    className="chat-image-bubble" 
-                                    style={{opacity: msg.seen === undefined ? 0.7 : 1}}
-                                    onClick={()=>setSelectedImage(msg.text)} 
-                                  />
-                                  {msg.seen === undefined && (
-                                      <>
-                                        <div className="upload-progress-container">
-                                            <div className="upload-progress-bar" style={{width: `${uploadProgress}%`}}></div>
-                                        </div>
-                                        <div style={{position:'absolute', bottom:5, right:5, fontSize:'10px', background:'rgba(0,0,0,0.5)', padding:'2px 5px', borderRadius:'5px'}}>
-                                            {Math.round(uploadProgress)}%
-                                        </div>
-                                      </>
-                                  )}
-                              </div>
-                          ) : msg.type === 'audio' ? (
-                              <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
-                                  <audio controls src={msg.text} style={{maxWidth:'200px', height:'30px'}} />
-                                  {msg.seen === undefined && <div style={{fontSize:'10px'}}>{Math.round(uploadProgress)}%</div>}
-                              </div>
-                          ) : ( msg.text )}
-                          
-                          {msg.senderId === myId && msg.seen !== undefined && (
-                              <span style={{fontSize: '10px', marginRight: '5px', display:'inline-block', float:'left', marginTop:'5px', color: msg.seen ? '#60a5fa' : '#9ca3af'}}>
-                                  {msg.seen ? <Icons.DoubleCheck /> : <Icons.Check />}
-                              </span>
-                          )}
-                      </div> 
-                  ))}
+                  
+                  {chatMessages.map(msg => {
+                      const reactions = msg.reactions || {};
+                      const hasReactions = Object.keys(reactions).length > 0;
+                      const reactionList = Object.entries(reactions);
+
+                      return (
+                        <div key={msg.id} style={{position:'relative', width: '100%', marginBottom: hasReactions ? '15px' : '5px', display: 'flex', flexDirection: 'column', alignItems: msg.senderId === myId ? 'flex-end' : 'flex-start'}}>
+                            
+                            {/* ✅ قائمة الخيارات (تظهر عند الضغط المطول) - تظهر بالأسفل */}
+                            {activeOptionsMsgId === msg.id && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%', // 👈 التعديل: تظهر أسفل الرسالة
+                                    marginTop: '8px',
+                                    zIndex: 20,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px',
+                                    animation: 'popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                                    alignItems: msg.senderId === myId ? 'flex-end' : 'flex-start'
+                                }}>
+                                    
+                                    {/* 1. الصف العلوي: التفاعلات */}
+                                    <div style={{
+                                        background: '#1f2937', 
+                                        borderRadius: '50px',
+                                        padding: '6px 12px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        boxShadow: '0 5px 15px rgba(0,0,0,0.4)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        minWidth: '220px',
+                                        justifyContent: 'center'
+                                    }}>
+                                        {/* 🚫 تم حذف زر الإضافة (+) لتبسيط الواجهة */}
+                                        
+                                        {REACTION_EMOJIS.map((emoji, idx) => (
+                                            <button 
+                                                key={emoji}
+                                                onClick={(e) => { e.stopPropagation(); toggleReaction(msg.id, emoji); }}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    fontSize: '24px',
+                                                    cursor: 'pointer',
+                                                    padding: '0 5px',
+                                                    transition: 'transform 0.2s',
+                                                }}
+                                            >
+                                                {emoji}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* 2. الصف السفلي: خيارات إضافية (نسخ، مسح) */}
+                                    <div style={{
+                                        background: '#1f2937',
+                                        borderRadius: '12px',
+                                        overflow: 'hidden',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        boxShadow: '0 5px 15px rgba(0,0,0,0.4)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        width: '150px'
+                                    }}>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleCopyMessage(msg.text); }}
+                                            style={{
+                                                background: 'transparent', border: 'none', color: 'white',
+                                                padding: '10px', textAlign: 'right', cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', gap: '8px',
+                                                fontSize: '13px', borderBottom: '1px solid rgba(255,255,255,0.05)'
+                                            }}
+                                        >
+                                            <Icons.Copy /> نسخ النص
+                                        </button>
+                                        
+                                        {/* 👈 التعديل: يظهر زر المسح فقط إذا كنت أنت المرسل */}
+                                        {msg.senderId === myId && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
+                                                style={{
+                                                    background: 'transparent', border: 'none', color: '#ef4444',
+                                                    padding: '10px', textAlign: 'right', cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', gap: '8px',
+                                                    fontSize: '13px'
+                                                }}
+                                            >
+                                                <Icons.Trash /> مسح الرسالة
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* جسم الرسالة */}
+                            <div 
+                                className={`chat-message ${msg.senderId === myId ? 'me' : 'other'} no-select`} 
+                                style={{
+                                    background: msg.type === 'sticker' ? 'transparent' : undefined, 
+                                    padding: msg.type === 'sticker' ? 0 : undefined, 
+                                    position: 'relative',
+                                    marginBottom: '0',
+                                    cursor: 'pointer',
+                                    transform: activeOptionsMsgId === msg.id ? 'scale(1.02)' : 'scale(1)',
+                                    transition: 'transform 0.1s',
+                                    filter: (activeOptionsMsgId && activeOptionsMsgId !== msg.id) ? 'blur(1px)' : 'none' // تمويه الرسائل غير المحددة
+                                }}
+                                // ✅ إضافة أحداث الضغط المطول
+                                onTouchStart={() => handleTouchStart(msg.id)}
+                                onTouchEnd={handleTouchEnd}
+                                onMouseDown={() => handleTouchStart(msg.id)}
+                                onMouseUp={handleTouchEnd}
+                                onMouseLeave={handleTouchEnd}
+                                onClick={(e) => {
+                                   // منع فتح الصورة عند النقر فقط إذا لم نكن في وضع الخيارات
+                                   if(activeOptionsMsgId) e.stopPropagation();
+                                }}
+                            >
+                                {msg.type === 'image' ? (
+                                    <div style={{position:'relative'}}>
+                                        <img 
+                                            src={msg.text} 
+                                            alt="Sent" 
+                                            className="chat-image-bubble" 
+                                            style={{opacity: msg.seen === undefined ? 0.7 : 1}}
+                                            onClick={() => { if(!activeOptionsMsgId) setSelectedImage(msg.text); }} 
+                                        />
+                                        {msg.seen === undefined && (
+                                            <>
+                                                <div className="upload-progress-container">
+                                                    <div className="upload-progress-bar" style={{width: `${uploadProgress}%`}}></div>
+                                                </div>
+                                                <div style={{position:'absolute', bottom:5, right:5, fontSize:'10px', background:'rgba(0,0,0,0.5)', padding:'2px 5px', borderRadius:'5px'}}>
+                                                    {Math.round(uploadProgress)}%
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                ) : msg.type === 'audio' ? (
+                                    <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
+                                        <audio controls src={msg.text} style={{maxWidth:'200px', height:'30px'}} />
+                                        {msg.seen === undefined && <div style={{fontSize:'10px'}}>{Math.round(uploadProgress)}%</div>}
+                                    </div>
+                                ) : msg.type === 'sticker' ? (
+                                    <img 
+                                        src={msg.text} 
+                                        alt="sticker" 
+                                        style={{width: '120px', height: '120px', objectFit: 'contain', display: 'block'}} 
+                                    />
+                                ) : ( 
+                                    msg.text 
+                                )}
+                                
+                                {msg.senderId === myId && msg.seen !== undefined && (
+                                    <span style={{fontSize: '10px', marginRight: '5px', display:'inline-block', float:'left', marginTop:'5px', color: msg.seen ? '#60a5fa' : '#9ca3af'}}>
+                                        {msg.seen ? <Icons.DoubleCheck /> : <Icons.Check />}
+                                    </span>
+                                )}
+
+                                {/* شارة التفاعلات */}
+                                {hasReactions && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        bottom: '-12px',
+                                        right: msg.senderId === myId ? 'auto' : '-5px',
+                                        left: msg.senderId === myId ? '-5px' : 'auto',
+                                        background: '#1f2937',
+                                        border: '2px solid #111827',
+                                        borderRadius: '20px',
+                                        padding: '2px 6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '2px',
+                                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                                        zIndex: 2,
+                                        minWidth: '24px',
+                                        justifyContent: 'center'
+                                    }}>
+                                        {reactionList.slice(0, 3).map(([emoji, users]) => (
+                                            <span key={emoji} style={{fontSize: '12px'}}>{emoji}</span>
+                                        ))}
+                                        {Object.keys(reactions).length > 1 && (
+                                            <span style={{fontSize: '9px', color: '#9ca3af', fontWeight: 'bold', marginLeft: '2px'}}>
+                                                {Object.values(reactions).reduce((acc: any, curr: any) => acc + Object.keys(curr).length, 0)}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                      );
+                  })}
+                  
                   {pendingMsg && (
                       <div className="chat-message me" style={{opacity: 0.7, display:'flex', alignItems:'center', gap:'10px'}}>
                           {pendingMsg.type === 'image' ? (
@@ -1756,12 +1964,64 @@ export default function CallClient() {
                   <div ref={chatEndRef} />
               </div>
 
-              <div className="chat-input-area">
+              <div className="chat-input-area" style={{position: 'relative'}}>
+                  
+                  {showStickerPicker && (
+                      <div className="sticker-picker-container" style={{
+                          position: 'absolute',
+                          bottom: '60px',
+                          left: '10px',
+                          right: '10px',
+                          height: '250px',
+                          background: 'rgba(31, 41, 55, 0.95)',
+                          backdropFilter: 'blur(10px)',
+                          borderRadius: '15px',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          padding: '10px',
+                          overflowY: 'auto',
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(4, 1fr)',
+                          gap: '10px',
+                          zIndex: 100,
+                          boxShadow: '0 -5px 20px rgba(0,0,0,0.3)'
+                      }}>
+                          {[...Array(70)].map((_, i) => (
+                              <div key={i} onClick={() => handleSendSticker(i + 1)} style={{cursor: 'pointer', transition: 'transform 0.2s', display: 'flex', justifyContent: 'center'}}>
+                                  <img 
+                                      src={`/stickers/s${i + 1}.webp`} 
+                                      alt={`s${i+1}`}
+                                      loading="lazy"
+                                      style={{width: '60px', height: '60px', objectFit: 'contain'}}
+                                      onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                                      onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                                  />
+                              </div>
+                          ))}
+                      </div>
+                  )}
+
                   <input type="file" ref={fileInputRef} style={{display:'none'}} accept="image/*" onChange={handleImageUpload} />
+                  
                   {!isRecording && (
                     <>
+                        <button 
+                            onClick={() => setShowStickerPicker(!showStickerPicker)} 
+                            style={{background:'transparent', color: showStickerPicker ? '#fbbf24' : '#9ca3af'}} 
+                            disabled={isUploading}
+                        >
+                            <Icons.Sticker />
+                        </button>
+
                         <button onClick={() => fileInputRef.current?.click()} style={{background:'transparent', color:'#9ca3af'}} disabled={isUploading}><Icons.Clip /></button>
-                        <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && sendMessage(chatInput)} placeholder="اكتب رسالة..." />
+                        
+                        <input 
+                            type="text" 
+                            value={chatInput} 
+                            onChange={e => setChatInput(e.target.value)} 
+                            onKeyPress={e => e.key === 'Enter' && sendMessage(chatInput)} 
+                            onFocus={() => { setShowStickerPicker(false); setActiveOptionsMsgId(null); }}
+                            placeholder="اكتب رسالة..." 
+                        />
                     </>
                   )}
                   {isRecording && ( <div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:'#ef4444', fontWeight:'bold', animation:'pulse 1s infinite'}}><span style={{marginRight:10}}>🔴</span> جاري التسجيل...</div> )}
