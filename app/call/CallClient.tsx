@@ -901,11 +901,8 @@ export default function CallClient() {
     setShowStickerPicker(false);
   };
 
-  // ✅ دالة إضافة أو تبديل التفاعل (واحد فقط لكل مستخدم)
   const toggleReaction = async (msgId: string, emoji: string) => {
     if (!activeChatTarget) return;
-    
-    // العثور على الرسالة الحالية لمعرفة التفاعلات السابقة
     const currentMsg = chatMessages.find(m => m.id === msgId);
     if (!currentMsg) return;
 
@@ -913,7 +910,6 @@ export default function CallClient() {
     const updates: any = {};
     const basePath = `chats/${chatId}/${msgId}/reactions`;
 
-    // 1. حذف أي تفاعل سابق للمستخدم (مهما كان نوع الإيموجي)
     if (currentMsg.reactions) {
         Object.keys(currentMsg.reactions).forEach((reactEmoji) => {
             if (currentMsg.reactions?.[reactEmoji]?.[myId]) {
@@ -922,19 +918,15 @@ export default function CallClient() {
         });
     }
 
-    // 2. إذا لم يكن المستخدم يضغط على نفس الإيموجي لحذفه، قم بإضافة الجديد
     const isSameReaction = currentMsg.reactions?.[emoji]?.[myId];
     if (!isSameReaction) {
         updates[`${basePath}/${emoji}/${myId}`] = true;
     }
 
-    // تنفيذ التحديثات مرة واحدة (Atomic update)
     await update(ref(db), updates);
-
     setActiveOptionsMsgId(null); 
   };
 
-  // ✅ دالة حذف الرسالة
   const handleDeleteMessage = (msgId: string) => {
       if (!activeChatTarget) return;
       const chatId = getChatId(myId, activeChatTarget.id);
@@ -943,19 +935,17 @@ export default function CallClient() {
       showToast("🗑️ تم حذف الرسالة", "نجاح", "success");
   };
 
-  // ✅ دالة نسخ الرسالة
   const handleCopyMessage = (text: string) => {
       navigator.clipboard.writeText(text);
       setActiveOptionsMsgId(null);
       showToast("📋 تم نسخ النص", "نجاح", "success");
   };
 
-  // ✅ التعامل مع الضغط المطول
   const handleTouchStart = (msgId: string) => {
       longPressTimerRef.current = setTimeout(() => {
           setActiveOptionsMsgId(msgId);
-          if (navigator.vibrate) navigator.vibrate(50); // Haptic feedback
-      }, 500); // 500ms long press
+          if (navigator.vibrate) navigator.vibrate(50);
+      }, 500); 
   };
 
   const handleTouchEnd = () => {
@@ -1205,7 +1195,11 @@ export default function CallClient() {
   const toggleDoNotDisturb = () => { setIsDoNotDisturb(!isDoNotDisturb); update(ref(db, `users/${myId}`), { isBusy: !isDoNotDisturb }); };
   const copyLink = () => { navigator.clipboard.writeText(`${APP_URL}/?target=${myId}`); showToast("✅ تم النسخ", "مشاركة", "success"); setShowShareOptions(false); };
   const clearHistory = () => { setCallHistory([]); localStorage.removeItem('face2_history'); };
-  const handleAcceptInvite = () => { if (invitedUser) { startCall(invitedUser, 'video'); setInvitedUser(null); router.replace('/call'); } };
+  
+  // دالة قبول دعوة QR
+  const confirmInviteCall = () => { if (invitedUser) { startCall(invitedUser, 'video'); setInvitedUser(null); router.replace('/call'); } };
+  // دالة إلغاء دعوة QR
+  const cancelInvite = () => { setInvitedUser(null); router.replace('/call'); };
 
   // --- useEffects ---
   useEffect(() => { const storedId = localStorage.getItem('face2_userId'); const storedName = localStorage.getItem('face2_username'); const storedAvatar = localStorage.getItem('face2_avatar'); if (!storedId || !storedName) { router.push('/setup'); return; } setMyId(storedId); setUsername(storedName); if (storedAvatar) setMyAvatar(storedAvatar); const connectedRef = ref(db, '.info/connected'); const userStatusRef = ref(db, `users/${storedId}`); const unsubscribe = onValue(connectedRef, (snap) => { if (snap.val() === true) { update(userStatusRef, { online: true, isBusy: false, username: storedName, avatar: storedAvatar || '👤', lastSeen: Date.now() }); onDisconnect(userStatusRef).update({ online: false, lastSeen: serverTimestamp() }); } }); remove(ref(db, `calls/${storedId}`)); 
@@ -1215,6 +1209,32 @@ export default function CallClient() {
         stopLocalMedia();
     }; 
   }, []);
+  
+  // ✅ 1. مراقبة رابط الدعوة (QR Code Logic)
+  useEffect(() => {
+    const targetId = searchParams.get('target');
+    if (targetId && myId && targetId !== myId) {
+        const userRef = ref(db, `users/${targetId}`);
+        get(userRef).then((snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                if (data.online) {
+                    setInvitedUser({ id: targetId, ...data });
+                } else {
+                    showToast(`المستخدم ${data.username || ''} غير متصل حالياً 📵`, "تنبيه", "error");
+                    router.replace('/call'); 
+                }
+            } else {
+                showToast("المستخدم غير موجود أو الرابط غير صحيح", "خطأ", "error");
+                router.replace('/call'); 
+            }
+        });
+    } else if (targetId === myId) {
+        showToast("لا يمكنك الاتصال بنفسك 😄", "تنبيه", "info");
+        router.replace('/call');
+    }
+  }, [searchParams, myId]);
+
   useEffect(() => { callStatusRef.current = callStatus; }, [callStatus]);
   useEffect(() => { isBusyRef.current = isDoNotDisturb; }, [isDoNotDisturb]);
   useEffect(() => { blockedUsersRef.current = blockedUsers; }, [blockedUsers]);
@@ -1437,7 +1457,7 @@ export default function CallClient() {
             </div>
       )}
 
-      {/* --- باقي محتويات الفيديو والـ CallUI (بدون تغيير) --- */}
+      {/* --- باقي محتويات الفيديو والـ CallUI --- */}
       <div className="video-fullscreen" style={{ visibility: (callStatus === 'CONNECTED' || callStatus === 'CALLING') ? 'visible' : 'hidden', opacity: (callStatus === 'CONNECTED' || callStatus === 'CALLING') ? 1 : 0 }} onClick={resetControlsVisibility}>
             <div className={`network-indicator quality-${netQuality}`} style={{opacity: callStatus === 'CONNECTED' ? 1 : 0}}><div className="signal-bar"></div> <div className="signal-bar"></div> <div className="signal-bar"></div> <div className="signal-bar"></div></div>
             
@@ -1733,7 +1753,6 @@ export default function CallClient() {
       {activeChatTarget && (
           <div className={`chat-container ${isDissolving ? 'dissolve-dust' : ''}`}>
               
-              {/* ✅ طبقة شفافة لإغلاق قائمة الخيارات عند الضغط خارج الرسالة */}
               {activeOptionsMsgId && (
                   <div 
                     style={{position: 'fixed', inset: 0, zIndex: 19, background: 'rgba(0,0,0,0.1)'}} 
@@ -1761,11 +1780,10 @@ export default function CallClient() {
                       return (
                         <div key={msg.id} style={{position:'relative', width: '100%', marginBottom: hasReactions ? '15px' : '5px', display: 'flex', flexDirection: 'column', alignItems: msg.senderId === myId ? 'flex-end' : 'flex-start'}}>
                             
-                            {/* ✅ قائمة الخيارات (تظهر عند الضغط المطول) - تظهر بالأسفل */}
                             {activeOptionsMsgId === msg.id && (
                                 <div style={{
                                     position: 'absolute',
-                                    top: '100%', // 👈 التعديل: تظهر أسفل الرسالة
+                                    top: '100%', 
                                     marginTop: '8px',
                                     zIndex: 20,
                                     display: 'flex',
@@ -1775,7 +1793,6 @@ export default function CallClient() {
                                     alignItems: msg.senderId === myId ? 'flex-end' : 'flex-start'
                                 }}>
                                     
-                                    {/* 1. الصف العلوي: التفاعلات */}
                                     <div style={{
                                         background: '#1f2937', 
                                         borderRadius: '50px',
@@ -1788,8 +1805,6 @@ export default function CallClient() {
                                         minWidth: '220px',
                                         justifyContent: 'center'
                                     }}>
-                                        {/* 🚫 تم حذف زر الإضافة (+) لتبسيط الواجهة */}
-                                        
                                         {REACTION_EMOJIS.map((emoji, idx) => (
                                             <button 
                                                 key={emoji}
@@ -1808,7 +1823,6 @@ export default function CallClient() {
                                         ))}
                                     </div>
 
-                                    {/* 2. الصف السفلي: خيارات إضافية (نسخ، مسح) */}
                                     <div style={{
                                         background: '#1f2937',
                                         borderRadius: '12px',
@@ -1831,7 +1845,6 @@ export default function CallClient() {
                                             <Icons.Copy /> نسخ النص
                                         </button>
                                         
-                                        {/* 👈 التعديل: يظهر زر المسح فقط إذا كنت أنت المرسل */}
                                         {msg.senderId === myId && (
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleDeleteMessage(msg.id); }}
@@ -1849,7 +1862,6 @@ export default function CallClient() {
                                 </div>
                             )}
 
-                            {/* جسم الرسالة */}
                             <div 
                                 className={`chat-message ${msg.senderId === myId ? 'me' : 'other'} no-select`} 
                                 style={{
@@ -1860,16 +1872,14 @@ export default function CallClient() {
                                     cursor: 'pointer',
                                     transform: activeOptionsMsgId === msg.id ? 'scale(1.02)' : 'scale(1)',
                                     transition: 'transform 0.1s',
-                                    filter: (activeOptionsMsgId && activeOptionsMsgId !== msg.id) ? 'blur(1px)' : 'none' // تمويه الرسائل غير المحددة
+                                    filter: (activeOptionsMsgId && activeOptionsMsgId !== msg.id) ? 'blur(1px)' : 'none' 
                                 }}
-                                // ✅ إضافة أحداث الضغط المطول
                                 onTouchStart={() => handleTouchStart(msg.id)}
                                 onTouchEnd={handleTouchEnd}
                                 onMouseDown={() => handleTouchStart(msg.id)}
                                 onMouseUp={handleTouchEnd}
                                 onMouseLeave={handleTouchEnd}
                                 onClick={(e) => {
-                                   // منع فتح الصورة عند النقر فقط إذا لم نكن في وضع الخيارات
                                    if(activeOptionsMsgId) e.stopPropagation();
                                 }}
                             >
@@ -1914,7 +1924,6 @@ export default function CallClient() {
                                     </span>
                                 )}
 
-                                {/* شارة التفاعلات */}
                                 {hasReactions && (
                                     <div style={{
                                         position: 'absolute',
@@ -2039,6 +2048,57 @@ export default function CallClient() {
       {showAboutModal && ( <div className="modal-overlay" onClick={() => setShowAboutModal(false)}> <div className="modern-modal" onClick={e => e.stopPropagation()} style={{background: themeColors.cardBg, border: `1px solid ${themeColors.border}`, padding: '30px', width: '350px', color: themeColors.text}}> <div className="sudan-flag-css" style={{margin:'0 auto 20px auto'}} onClick={() => setShowAboutModal(true)}></div> <h2 style={{margin: '10px 0'}}>Face2</h2> <p style={{color: '#10b981', fontWeight: 'bold', fontSize: '14px', marginBottom: '20px'}}>🔒 أول تطبيق اتصال سوداني آمن</p> <div style={{background: theme === 'dark' ? '#1f2937' : '#e5e7eb', padding: '15px', borderRadius: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', border: `1px solid ${themeColors.border}`, cursor: 'pointer'}} onClick={toggleTheme}> <span style={{color: themeColors.subText}}>المظهر:</span> <div style={{display:'flex', alignItems:'center', gap:'5px', fontWeight:'bold', color: theme === 'dark' ? '#fbbf24' : '#1e293b'}}> {theme === 'dark' ? <><Icons.Moon /> ليلي</> : <><Icons.Sun /> نهاري</>} </div> </div> <div style={{background: theme === 'dark' ? '#1f2937' : '#e5e7eb', padding: '20px', borderRadius: '15px', border: `1px solid ${themeColors.border}`, marginBottom: '20px'}}> <p style={{color: themeColors.subText, fontSize: '12px', marginBottom: '10px'}}>تم تطوير هذا التطبيق بكل ❤️ بواسطة:</p> <a href="https://www.facebook.com/share/1KjS11eHuP/" target="_blank" rel="noopener noreferrer" style={{color: '#6366f1', fontWeight: 'bold', fontSize: '16px', textDecoration: 'none', display: 'block', marginBottom: '15px'}}>↗ Mustafa Omar Ahmed</a> <p style={{color: themeColors.subText, fontSize: '11px', lineHeight: '1.6', marginBottom: '10px'}}>"يمكن لأي شخص إنشاء تطبيق بالذكاء الاصطناعي.. كل ما يهم هو فكرة الشخص وإصراره على بناء شيء جميل" ✨</p> <p style={{color: themeColors.subText, fontSize: '10px'}}>🤖 Powered by Gemini AI</p> </div> <button onClick={() => setShowAboutModal(false)} className="gradient-btn" style={{background: '#4f46e5'}}>إغلاق ✖️</button> </div> </div> )}
       {showShareOptions && ( <div className="modal-overlay" onClick={() => setShowShareOptions(false)}> <div className="modern-modal" onClick={e => e.stopPropagation()}> <h3>دعوة صديق 🤝</h3> <button onClick={copyLink} className="gradient-btn">🔗 نسخ الرابط</button> <button onClick={() => {setShowShareOptions(false); setShowQRModal(true)}} className="gradient-btn">📱 عرض كود QR</button> </div> </div> )}
       {showQRModal && ( <div className="modal-overlay" onClick={() => setShowQRModal(false)}> <div className="modern-modal" onClick={e=>e.stopPropagation()} style={{background:'white'}}> <QRCode value={`${APP_URL}/?target=${myId}`} /> <button onClick={() => setShowQRModal(false)} className="gradient-btn" style={{marginTop:20}}>إغلاق</button> </div> </div> )}
+      
+      {/* ✅ 2. نافذة دعوة QR Code الجديدة */}
+      {invitedUser && (
+        <div className="modal-overlay" style={{zIndex: 10000}}>
+            <div className="modern-modal" style={{textAlign: 'center', padding: '30px'}}>
+                <div style={{
+                    width: '80px', height: '80px', 
+                    borderRadius: '50%', background: '#374151', 
+                    margin: '0 auto 15px auto', fontSize: '40px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: '3px solid #10b981'
+                }}>
+                    {invitedUser.avatar || '👤'}
+                </div>
+                
+                <h2 style={{fontSize: '20px', marginBottom: '5px', color: 'white'}}>
+                    {invitedUser.username}
+                </h2>
+                
+                <p style={{color: '#9ca3af', marginBottom: '25px'}}>
+                    يريد هذا الشخص التواصل معك 📞
+                </p>
+
+                <div style={{display: 'flex', gap: '15px', justifyContent: 'center'}}>
+                    <button 
+                        onClick={confirmInviteCall} 
+                        className="gradient-btn" 
+                        style={{
+                            background: '#10b981', 
+                            flex: 1, 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'
+                        }}
+                    >
+                        <Icons.CamOn /> اتصال
+                    </button>
+                    
+                    <button 
+                        onClick={cancelInvite} 
+                        className="gradient-btn" 
+                        style={{
+                            background: '#ef4444', 
+                            flex: 1
+                        }}
+                    >
+                        إلغاء ✖
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       {showHistoryModal && ( <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}> <div className="history-modal-card" onClick={e=>e.stopPropagation()} style={{background: themeColors.cardBg, color: themeColors.text}}> <h3 className="history-title">سجل المكالمات 📞</h3> <div className="history-list-container"> {callHistory.length === 0 ? <p style={{color:'#9ca3af', marginTop:30}}>لا توجد مكالمات حديثة</p> : callHistory.map((log, i) => ( <div key={i} className="history-item" style={{background: theme === 'dark' ? '#111827' : '#f9fafb', border: `1px solid ${themeColors.border}`}}> <div className="history-info-right"> <span className="h-name" style={{color: themeColors.text}}>{log.name}</span> <div className="h-status-row"> {log.type === 'missed' && <span style={{color:'#ef4444'}}>❌ فائتة</span>} {log.type === 'incoming' && <span style={{color:'#10b981'}}>✅ واردة</span>} {log.type === 'outgoing' && <span style={{color:'#3b82f6'}}>↗️ صادرة</span>} {log.type === 'rejected' && <span style={{color:'#f59e0b'}}>⛔ مرفوضة</span>} {log.type === 'canceled' && <span style={{color:'#9ca3af'}}>🚫 ملغاة</span>} {log.duration && <span style={{marginRight:10, color: (log.duration.includes('🚫') || log.duration.includes('⛔')) ? '#ef4444' : '#9ca3af', fontSize:11}}>⏱️ {log.duration}</span>} </div> </div> <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end'}}> <span style={{fontSize:24}}>{log.avatar || '👤'}</span> <span className="h-time">{log.time}</span> </div> </div> ))} </div> <div className="history-actions-row"> <button onClick={() => setShowHistoryModal(false)} className="btn-modal-close">إغلاق ✖️</button> <button onClick={clearHistory} className="btn-modal-clear">حذف الكل 🗑️</button> </div> </div> </div> )}
       
       {/* 1. الشاشة الرئيسية */}
