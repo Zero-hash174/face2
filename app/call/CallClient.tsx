@@ -1985,7 +1985,7 @@ export default function CallClient() {
                           zIndex: 100,
                           boxShadow: '0 -5px 20px rgba(0,0,0,0.3)'
                       }}>
-                          {[...Array(70)].map((_, i) => (
+                          {[...Array(81)].map((_, i) => (
                               <div key={i} onClick={() => handleSendSticker(i + 1)} style={{cursor: 'pointer', transition: 'transform 0.2s', display: 'flex', justifyContent: 'center'}}>
                                   <img 
                                       src={`/stickers/s${i + 1}.webp`} 
